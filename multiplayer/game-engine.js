@@ -858,7 +858,10 @@ class Game {
   }
 
   // ===== 自動發完剩下的公牌（適用於：能下注的人 ≤ 1 的場面） =====
-  // 不再給玩家行動機會，把 flop/turn/river 一次發到位，之後 server 一張一張秀出來
+  // 注意：這裡「不發牌」，只回傳還沒發的街序列。
+  // 之所以不立刻發完，是因為 server 接著會 _broadcastState，
+  // 若這時 community 已是 5 張，client 會先閃一下完整公牌再被 street event 覆蓋。
+  // 改由 server 在 setTimeout 序列裡一張一張 deal + broadcast。
   _autoRunout(){
     this.players.forEach(p => { p.bet = 0; });
     // 沒人輪到行動了 → 清掉 currentPos 避免 client 仍 highlight 誰
@@ -866,15 +869,12 @@ class Game {
     this.toAct = new Set();
     this.hasActedThisRound = new Set();
     this.highestBet = 0;
-    const dealt = [];
-    while(this.street !== 'river'){
-      if(this.street === 'preflop'){ this.street = 'flop'; this._dealFlop(); }
-      else if(this.street === 'flop'){ this.street = 'turn'; this._dealTurn(); }
-      else if(this.street === 'turn'){ this.street = 'river'; this._dealRiver(); }
-      else break;
-      dealt.push({ street: this.street, community: this.community.slice() });
-    }
-    return { phase: 'auto-runout', streets: dealt };
+    const pending = [];
+    if(this.street === 'preflop') pending.push('flop','turn','river');
+    else if(this.street === 'flop') pending.push('turn','river');
+    else if(this.street === 'turn') pending.push('river');
+    // 'river' 已在最後一張 → pending 空陣列，server 會直接進 showdown
+    return { phase: 'auto-runout', pendingStreets: pending };
   }
 
   // ===== 計算 side pots =====

@@ -267,17 +267,28 @@ class Room {
       // 等 1 秒讓 client 看到新的公牌
       setTimeout(()=> this._scheduleTurn(), 1000);
     } else if(adv.phase === 'auto-runout'){
-      // All-in 後沒人能再下注 → 自動把 turn / river 一張一張秀，最後再 showdown
+      // All-in 後沒人能再下注 → 一張一張發 + 廣播，最後再 showdown
       // 先廣播一次 state 清掉「誰是當前 player」、停掉客戶端的計時環
+      // 此刻 game.community 還沒被加新牌，所以 client 收到的是「目前該看到的公牌」
       this.turnDeadline = 0;
       this._broadcastState();
-      const streets = adv.streets || [];
+      const pending = adv.pendingStreets || [];
       let delay = 700;
-      streets.forEach(s => {
-        setTimeout(()=> this.broadcast({ type:'street', street: s.street, community: s.community }), delay);
+      pending.forEach(streetName => {
+        setTimeout(() => {
+          // 真正在這一刻才發那條街的牌
+          if(streetName === 'flop'){ this.game.street = 'flop'; this.game._dealFlop(); }
+          else if(streetName === 'turn'){ this.game.street = 'turn'; this.game._dealTurn(); }
+          else if(streetName === 'river'){ this.game.street = 'river'; this.game._dealRiver(); }
+          this.broadcast({
+            type:'street',
+            street: streetName,
+            community: this.game.community.slice(),
+          });
+        }, delay);
         delay += 1100;
       });
-      setTimeout(()=> this._doShowdown(), delay + 400);
+      setTimeout(() => this._doShowdown(), delay + 400);
     } else if(adv.phase === 'showdown'){
       this._doShowdown();
     }
