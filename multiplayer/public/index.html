@@ -1,0 +1,990 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>德撲錦標賽 — 多人連線</title>
+<style>
+  *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+  :root{
+    --bg:#0a0d10; --panel:#141a20; --panel-2:#1a2128;
+    --felt-1:#0a4a2a; --felt-2:#0e6438; --felt-edge:#1f2a32;
+    --text:#f3efe3; --text-dim:#9aa3ab; --text-mute:#6b7480;
+    --gold:#e7b53b; --gold-2:#c69a2a;
+    --red:#e23b3b; --green:#3bd47a; --blue:#4a9eff;
+  }
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",PingFang TC,Helvetica,Arial,sans-serif;overflow:hidden}
+  button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
+  button:disabled{cursor:not-allowed;opacity:.4}
+  input{font-family:inherit;background:var(--panel);border:1px solid var(--felt-edge);color:var(--text);padding:8px 12px;border-radius:6px;font-size:14px}
+  input:focus{outline:none;border-color:var(--gold)}
+  .screen{position:fixed;inset:0;display:flex;flex-direction:column;padding:24px}
+  .hidden{display:none!important}
+
+  /* 連線狀態 */
+  .conn-state{position:fixed;top:8px;right:8px;font-size:11px;color:var(--text-mute);padding:4px 10px;border-radius:99px;background:rgba(0,0,0,.5);z-index:99;letter-spacing:1px}
+  .conn-state.ok{color:var(--green)}
+  .conn-state.bad{color:var(--red)}
+
+  /* ===== Lobby ===== */
+  #lobby{align-items:center;justify-content:center;background:radial-gradient(ellipse at top,#1a2530 0%,#0a0d10 60%)}
+  .lobby-title{font-size:42px;font-weight:800;letter-spacing:4px;margin-bottom:8px;text-align:center}
+  .lobby-title .gold{color:var(--gold)}
+  .lobby-sub{color:var(--text-dim);text-align:center;margin-bottom:32px;letter-spacing:2px}
+
+  .lobby-card{background:var(--panel);border:1px solid var(--felt-edge);border-radius:12px;padding:32px 40px;width:min(520px,100%);box-shadow:0 8px 32px rgba(0,0,0,.5)}
+  .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+  .form-row label{font-size:12px;color:var(--text-dim);letter-spacing:2px}
+  .form-row input{font-size:15px;padding:10px 14px}
+
+  .lobby-actions{display:flex;gap:10px;margin-top:18px}
+  .lobby-actions button{flex:1;padding:14px;font-size:15px;font-weight:700;letter-spacing:3px;border-radius:8px}
+  .lobby-actions button.primary{background:var(--gold);color:#000}
+  .lobby-actions button.primary:hover{background:#fcc847}
+  .lobby-actions button.secondary{background:var(--panel-2);border:1px solid var(--felt-edge);color:var(--text)}
+  .lobby-actions button.secondary:hover{border-color:var(--gold);color:var(--gold)}
+
+  .toggle-form{display:flex;gap:8px;margin-bottom:18px;justify-content:center}
+  .toggle-form button{padding:8px 18px;background:var(--panel-2);border:1px solid var(--felt-edge);color:var(--text-dim);border-radius:6px;font-size:13px;letter-spacing:2px}
+  .toggle-form button.active{background:var(--gold);color:#000;border-color:var(--gold)}
+
+  .room-settings{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:14px}
+  .room-settings .form-row{margin-bottom:0}
+
+  /* ===== Waiting Room ===== */
+  #wait{align-items:center;justify-content:center;background:radial-gradient(ellipse at top,#1a2530 0%,#0a0d10 60%)}
+  .wait-card{background:var(--panel);border:2px solid var(--gold);border-radius:14px;padding:32px 48px;text-align:center;width:min(580px,100%)}
+  .wait-code{font-size:48px;font-weight:900;color:var(--gold);letter-spacing:12px;background:rgba(0,0,0,.5);padding:16px 28px;border-radius:10px;margin:14px 0;font-family:Menlo,Consolas,monospace}
+  .wait-hint{color:var(--text-dim);font-size:13px;letter-spacing:2px;margin-bottom:18px}
+  .wait-players{margin:18px 0;display:flex;flex-direction:column;gap:6px}
+  .wait-player{display:flex;align-items:center;gap:10px;padding:8px 14px;background:rgba(255,255,255,.03);border-radius:6px;font-size:14px}
+  .wait-player .ico{font-size:18px}
+  .wait-player.host .name::after{content:" (房主)";color:var(--gold);font-size:11px;margin-left:4px}
+  .wait-player .name{flex:1;text-align:left}
+  .wait-player .you{background:var(--gold);color:#000;padding:2px 8px;border-radius:4px;font-size:10px;font-weight:800}
+
+  .wait-actions{display:flex;gap:10px;margin-top:18px}
+  .wait-actions button{flex:1;padding:12px;font-weight:700;letter-spacing:3px;border-radius:8px;font-size:14px}
+  .wait-actions .start{background:var(--gold);color:#000}
+  .wait-actions .start:hover{background:#fcc847}
+  .wait-actions .leave{background:var(--panel-2);border:1px solid var(--felt-edge);color:var(--text-dim)}
+  .wait-actions .leave:hover{color:var(--red);border-color:var(--red)}
+
+  .copy-btn{padding:6px 12px;background:var(--panel-2);border:1px solid var(--felt-edge);color:var(--text);border-radius:5px;font-size:12px;letter-spacing:1px;margin-left:8px}
+  .copy-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+  /* ===== Game Screen ===== */
+  #game{flex-direction:row;padding:0}
+  .main{flex:1;display:flex;flex-direction:column;min-width:0}
+  .topbar{background:var(--panel);border-bottom:1px solid var(--felt-edge);padding:10px 18px;display:flex;align-items:center;gap:24px;flex-shrink:0}
+  .info-block{display:flex;flex-direction:column;line-height:1.2}
+  .info-block .lbl{font-size:10px;color:var(--text-mute);letter-spacing:1px;text-transform:uppercase}
+  .info-block .val{font-size:16px;font-weight:600}
+  .info-block .val.gold{color:var(--gold)}
+  .timer{font-variant-numeric:tabular-nums;font-size:20px;font-weight:700;color:var(--gold)}
+  .topbar .right{margin-left:auto;display:flex;gap:8px}
+  .topbar button.icon{padding:6px 12px;border:1px solid var(--felt-edge);border-radius:6px;font-size:12px;color:var(--text-dim)}
+  .topbar button.icon:hover{border-color:var(--red);color:var(--red)}
+
+  .table-wrap{flex:1;position:relative;display:flex;align-items:center;justify-content:center;padding:40px 30px 140px;min-height:0}
+  .felt{position:relative;width:min(100%,1100px);aspect-ratio:1.7/1;max-height:calc(100vh - 240px);background:radial-gradient(ellipse at center,var(--felt-2) 0%,var(--felt-1) 60%,#063a20 100%);border:8px solid #2a1a0e;border-radius:50%/50%;box-shadow:inset 0 0 60px rgba(0,0,0,.5),0 12px 40px rgba(0,0,0,.6)}
+  .felt::before{content:"";position:absolute;inset:14px;border:2px solid rgba(231,181,59,.15);border-radius:inherit;pointer-events:none}
+
+  .center{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);display:flex;flex-direction:column;align-items:center;gap:14px;width:80%}
+  .pot{display:flex;flex-direction:column;align-items:center;gap:4px}
+  .pot .lbl{font-size:11px;color:rgba(255,255,255,.5);letter-spacing:2px}
+  .pot .val{font-size:22px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums}
+  .community{display:flex;gap:8px;min-height:96px}
+
+  .card{width:60px;height:84px;background:#fafaf2;border-radius:6px;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;box-shadow:0 2px 8px rgba(0,0,0,.3);font-weight:700;color:#222;user-select:none}
+  .card.s,.card.c{color:#1a1a1a}
+  .card.h,.card.d{color:#c93030}
+  .card .r{font-size:22px;line-height:1}
+  .card .s{font-size:22px;line-height:1;margin-top:2px}
+  .card.placeholder{background:rgba(0,0,0,.18);box-shadow:none;border:1.5px dashed rgba(255,255,255,.12)}
+  .card.back{background:linear-gradient(135deg,#7c1e1e 0%,#a02b2b 50%,#7c1e1e 100%);position:relative}
+  .card.back::after{content:"";position:absolute;inset:6px;border:1.5px solid rgba(255,255,255,.25);border-radius:4px}
+  .card.small{width:42px;height:60px}
+  .card.small .r,.card.small .s{font-size:15px}
+  .card.matched{box-shadow:0 0 0 4px var(--gold),0 0 30px var(--gold)!important;z-index:5;animation:matchPulse .55s ease-in-out infinite alternate}
+  @keyframes matchPulse{
+    from{transform:translateY(-6px) scale(1.05)}
+    to{transform:translateY(-10px) scale(1.10)}
+  }
+
+  .seat{position:absolute;display:flex;flex-direction:column;align-items:center;gap:6px;width:140px;transition:opacity .3s}
+  .seat .avatar{width:54px;height:54px;border-radius:50%;background:var(--panel);border:2px solid var(--felt-edge);display:flex;align-items:center;justify-content:center;font-size:22px;transition:all .3s}
+  .seat.active .avatar{border-color:var(--gold);box-shadow:0 0 0 3px rgba(231,181,59,.3),0 0 24px rgba(231,181,59,.5);transform:scale(1.15)}
+  .seat .name-plate{background:rgba(0,0,0,.55);padding:4px 10px;border-radius:6px;display:flex;flex-direction:column;align-items:center;min-width:100px;border:1px solid rgba(255,255,255,.06)}
+  .seat .name{font-size:12px;font-weight:600}
+  .seat.you .name{color:var(--gold)}
+  .seat .chips{font-size:13px;color:var(--gold);font-variant-numeric:tabular-nums}
+  .seat.eliminated{opacity:.3;filter:grayscale(1)}
+  .seat.folded{opacity:.42;filter:grayscale(.85)}
+  .seat .hole{display:flex;gap:4px;margin-top:2px;min-height:62px}
+  .seat .bet{position:absolute;background:rgba(0,0,0,.7);color:var(--gold);padding:3px 8px;border-radius:99px;font-size:12px;font-weight:600;font-variant-numeric:tabular-nums}
+  .seat.dealer .avatar::after{content:"D";position:absolute;bottom:-4px;right:-4px;width:18px;height:18px;background:#fff;color:#000;border-radius:50%;font-size:11px;font-weight:700;display:flex;align-items:center;justify-content:center;border:2px solid var(--felt-1)}
+  .seat .badge{position:absolute;top:-6px;left:-6px;color:#fff;font-size:10px;padding:2px 6px;border-radius:99px;font-weight:600}
+  .seat .badge.bb{background:#7c4dff}
+  .seat .badge.sb{background:#4dafff}
+  .seat .status{font-size:11px;color:var(--text-dim);min-height:14px}
+  .seat .status.fold{color:var(--text-mute);text-decoration:line-through}
+  .seat .status.allin{color:var(--red);font-weight:700}
+  .seat.winner .avatar{transform:scale(1.5);box-shadow:0 0 0 5px var(--gold),0 0 50px var(--gold);animation:winnerPulse .8s ease infinite alternate}
+  .seat.winner .name-plate{background:linear-gradient(135deg,var(--gold),#fcc847);border-color:#fcc847}
+  .seat.winner .name,.seat.winner .chips{color:#000;font-weight:800}
+  @keyframes winnerPulse{ to{ box-shadow:0 0 0 7px #fcc847,0 0 70px var(--gold) } }
+
+  /* 座位位置 */
+  .seat[data-pos="0"]{bottom:-9%;left:50%;transform:translateX(-50%)}
+  .seat[data-pos="1"]{bottom:14%;left:-4%}
+  .seat[data-pos="2"]{top:4%;left:10%}
+  .seat[data-pos="3"]{top:-9%;left:50%;transform:translateX(-50%)}
+  .seat[data-pos="4"]{top:4%;right:10%}
+  .seat[data-pos="5"]{bottom:14%;right:-4%}
+  .seat[data-pos="0"] .avatar{order:1}
+  .seat[data-pos="0"] .name-plate{order:2}
+  .seat[data-pos="0"] .status{order:3}
+  .seat[data-pos="0"] .hole{order:4}
+  .seat[data-pos="3"] .avatar{order:1}
+  .seat[data-pos="3"] .name-plate{order:2}
+  .seat[data-pos="3"] .hole{order:0}
+
+  /* Action panel */
+  .actions{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:stretch;gap:8px;z-index:10}
+  .turn-timer{display:flex;align-items:center;gap:10px;background:rgba(20,26,32,.94);border:1px solid var(--felt-edge);padding:7px 16px;border-radius:10px;backdrop-filter:blur(6px);width:100%}
+  .turn-timer .lbl{font-size:11px;color:var(--text-mute);letter-spacing:2px;flex-shrink:0}
+  .turn-timer .bar{flex:1;height:8px;background:var(--felt-edge);border-radius:99px;overflow:hidden}
+  .turn-timer .bar .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .1s linear}
+  .turn-timer .bar .fill.warn{background:linear-gradient(90deg,var(--gold),var(--red))}
+  .turn-timer .bar .fill.danger{background:var(--red)}
+  .turn-timer .sec{font-size:13px;font-weight:700;color:var(--gold);font-variant-numeric:tabular-nums;min-width:32px;text-align:right}
+  .action-row{display:flex;gap:14px;align-items:stretch;background:rgba(20,26,32,.94);padding:12px 14px;border-radius:14px;border:1px solid var(--felt-edge);backdrop-filter:blur(6px);box-shadow:0 6px 24px rgba(0,0,0,.5)}
+  .btns{display:flex;gap:10px;align-items:stretch}
+  .btns button{padding:10px 22px;border-radius:8px;font-size:14px;font-weight:800;border:1px solid var(--felt-edge);background:var(--panel-2);min-width:96px;letter-spacing:2px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;line-height:1.15;color:#3a4750;transition:all .15s}
+  .btns button .lbl-txt{color:inherit}
+  .btns button .amt{font-size:18px;font-weight:900;letter-spacing:0;font-variant-numeric:tabular-nums}
+  .btns button:not(:disabled){color:#fff;border-color:rgba(255,255,255,.22);background:linear-gradient(180deg,#22303d 0%,#192129 100%)}
+  .btns button.danger:not(:disabled){color:#ff7878;border-color:rgba(226,59,59,.5)}
+  .btns button.primary:not(:disabled){background:linear-gradient(180deg,#fcc847,var(--gold));color:#000;border-color:#fcc847}
+  .btns button:not(:disabled):not(.primary):not(.danger):hover{border-color:var(--gold);color:var(--gold)}
+  .btns button.primary:not(:disabled):hover{background:linear-gradient(180deg,#ffd968,#fcc847)}
+  .btns button.danger:not(:disabled):hover{background:#682b2b;color:#fff}
+  .btns button:disabled{opacity:.18;filter:grayscale(.8)}
+
+  /* 加注 floating */
+  .raise-float{position:fixed;right:24px;top:50%;transform:translateY(-50%);width:144px;background:rgba(20,26,32,.96);border:1px solid var(--felt-edge);border-radius:12px;padding:0 12px 10px;z-index:11;box-shadow:0 8px 28px rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;gap:8px}
+  .raise-handle{cursor:move;text-align:center;font-size:11px;color:var(--gold);letter-spacing:4px;font-weight:700;padding:8px 0 6px;width:100%;border-bottom:1px solid var(--felt-edge)}
+  .raise-val{font-size:22px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;background:rgba(0,0,0,.45);padding:6px 12px;border-radius:6px;min-width:108px;text-align:center;border:1px solid var(--gold-2)}
+  .vrange-wrap{position:relative;width:48px;height:140px}
+  .vrange-track{position:absolute;left:50%;top:0;bottom:0;width:14px;transform:translateX(-50%);background:linear-gradient(to top,#222,var(--felt-edge));border-radius:8px;border:1px solid #2a3038;overflow:hidden}
+  .vrange-fill{position:absolute;left:0;right:0;bottom:0;height:0%;background:linear-gradient(to top,var(--gold-2),var(--gold));transition:height .08s linear}
+  .vrange-thumb{position:absolute;left:50%;width:42px;height:18px;transform:translate(-50%,50%);background:linear-gradient(180deg,#fff,#aaa);border:1px solid #555;border-radius:4px;bottom:0}
+  .raise-float input[type=range]{
+    -webkit-appearance:slider-vertical;appearance:slider-vertical;writing-mode:bt-lr;
+    width:48px;height:140px;margin:0;padding:0;opacity:0;cursor:pointer;position:absolute;inset:0;z-index:2;
+  }
+  .raise-float .quick{display:grid;grid-template-columns:1fr 1fr;gap:3px;width:100%}
+  .raise-float .quick button{padding:5px 0;font-size:10px;border:1px solid var(--felt-edge);background:var(--panel-2);color:var(--text-dim);border-radius:4px}
+  .raise-float .quick button:hover{border-color:var(--gold);color:var(--gold)}
+
+  /* Sidebar 籌碼排行 */
+  .sidebar{width:300px;background:var(--panel);border-left:1px solid var(--felt-edge);overflow-y:auto;flex-shrink:0;display:flex;flex-direction:column}
+  .sidebar h4{font-size:13px;letter-spacing:1px;text-transform:uppercase;color:var(--gold);padding:14px 16px 8px;border-bottom:1px solid var(--felt-edge)}
+  .panel-block{padding:12px 16px;border-bottom:1px solid var(--felt-edge)}
+  .stack-ranking{display:flex;flex-direction:column;gap:5px}
+  .rank-row{display:grid;grid-template-columns:22px 1fr 56px;gap:8px;align-items:center;padding:7px 8px;background:rgba(255,255,255,.03);border-radius:6px;transition:transform .55s cubic-bezier(.5,.05,.3,1)}
+  .rank-row.eliminated{opacity:.35;filter:grayscale(.7)}
+  .rank-row.you{background:rgba(231,181,59,.18);border-left:4px solid var(--gold);padding:9px 10px;animation:youBreathe 1.6s ease infinite alternate}
+  .rank-row.you .rr-name,.rank-row.you .rr-bb{color:var(--gold);font-weight:900}
+  .rank-row.you .rr-bb{font-size:18px}
+  @keyframes youBreathe{ to{ background:rgba(231,181,59,.36); box-shadow:0 0 18px rgba(231,181,59,.5) inset } }
+  .rr-num{font-size:13px;color:var(--text-mute);font-weight:800;text-align:center}
+  .rank-row:nth-child(1) .rr-num{color:var(--gold)}
+  .rr-mid{display:flex;flex-direction:column;gap:3px;min-width:0}
+  .rr-name{font-size:12px;font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .rr-bar{height:8px;background:rgba(0,0,0,.4);border-radius:99px;overflow:hidden}
+  .rr-fill{height:100%;background:linear-gradient(90deg,var(--gold-2),var(--gold));transition:width .55s cubic-bezier(.5,.05,.3,1);border-radius:99px}
+  .rr-bb{font-size:14px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;text-align:right}
+
+  /* End screen */
+  #end{align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#1a2530 0%,#0a0d10 80%)}
+  .end-card{background:var(--panel);border:1px solid var(--felt-edge);border-radius:12px;padding:36px 48px;width:min(560px,100%);text-align:center}
+  .end-card h2{font-size:28px;font-weight:700;margin-bottom:20px}
+  .ranking-table{width:100%;margin:18px 0;border-collapse:collapse;font-size:14px}
+  .ranking-table th,.ranking-table td{padding:8px 12px;text-align:left;border-bottom:1px solid var(--felt-edge)}
+  .ranking-table th{color:var(--text-mute);font-weight:500;font-size:11px;letter-spacing:1px;text-transform:uppercase}
+  .ranking-table tr.you{background:rgba(231,181,59,.08)}
+  .ranking-table tr.you td{color:var(--gold);font-weight:600}
+  .end-card button{padding:12px 24px;border-radius:6px;font-weight:600;background:var(--gold);color:#000;letter-spacing:2px;margin-top:14px}
+
+  /* Toast */
+  .toast{position:fixed;top:20px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.85);border:1px solid var(--gold);color:var(--gold);padding:12px 24px;border-radius:8px;font-size:14px;font-weight:600;z-index:100;opacity:0;pointer-events:none;transition:opacity .3s}
+  .toast.show{opacity:1}
+
+  /* 升盲 / 比牌 大字 */
+  .big-overlay{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;z-index:100;pointer-events:none;background:rgba(0,0,0,.4)}
+  .big-card{padding:28px 56px;background:linear-gradient(135deg,#1a2530,#0a0d10);border:3px solid var(--gold);border-radius:16px;text-align:center;box-shadow:0 0 80px var(--gold)}
+  .big-stage{font-size:14px;color:var(--text-mute);letter-spacing:6px;margin-bottom:6px}
+  .big-title{font-size:48px;font-weight:900;color:var(--gold);letter-spacing:10px;margin-bottom:8px;text-shadow:0 0 40px var(--gold)}
+  .big-desc{font-size:18px;color:#fcc847;letter-spacing:4px;font-weight:800}
+  .big-overlay.fade-out{animation:bigFade .3s ease forwards}
+  @keyframes bigFade{ to{ opacity:0 } }
+
+  ::-webkit-scrollbar{width:8px}
+  ::-webkit-scrollbar-track{background:transparent}
+  ::-webkit-scrollbar-thumb{background:var(--felt-edge);border-radius:4px}
+</style>
+</head>
+<body>
+
+<div class="conn-state" id="connState">連線中…</div>
+
+<!-- ============ LOBBY ============ -->
+<div id="lobby" class="screen">
+  <div class="lobby-title">德撲<span class="gold">錦標賽</span></div>
+  <div class="lobby-sub">多人連線版 · 經典模式</div>
+  <div class="lobby-card">
+    <div class="toggle-form">
+      <button id="modeCreate" class="active">建立房間</button>
+      <button id="modeJoin">加入房間</button>
+    </div>
+
+    <div class="form-row">
+      <label>你的名字</label>
+      <input type="text" id="playerName" placeholder="輸入暱稱（最多 12 字）" maxlength="12">
+    </div>
+
+    <!-- 建房：設定房間 -->
+    <div id="createForm">
+      <div class="room-settings">
+        <div class="form-row">
+          <label>AI 對手數</label>
+          <input type="number" id="aiCount" min="0" max="5" value="3">
+        </div>
+        <div class="form-row">
+          <label>思考時間 (秒)</label>
+          <input type="number" id="baseTurnSec" min="5" max="60" value="20">
+        </div>
+        <div class="form-row">
+          <label>升盲時間 (秒)</label>
+          <input type="number" id="blindSec" min="30" max="300" value="120">
+        </div>
+      </div>
+    </div>
+
+    <!-- 加房：輸入邀請碼 -->
+    <div id="joinForm" class="hidden">
+      <div class="form-row">
+        <label>邀請碼</label>
+        <input type="text" id="roomCode" placeholder="輸入 5 字邀請碼" maxlength="5" style="text-transform:uppercase;letter-spacing:6px;font-family:Menlo,monospace">
+      </div>
+    </div>
+
+    <div class="lobby-actions">
+      <button class="primary" id="btnGo">開始</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ WAITING ROOM ============ -->
+<div id="wait" class="screen hidden">
+  <div class="wait-card">
+    <div style="font-size:14px;color:var(--text-mute);letter-spacing:3px">邀請碼</div>
+    <div class="wait-code" id="waitCode">—</div>
+    <button class="copy-btn" id="copyCodeBtn">複製邀請連結</button>
+    <div class="wait-hint">告訴朋友這 5 個字，他們點「加入房間」輸入就能進來</div>
+    <div class="wait-players" id="waitPlayers"></div>
+    <div class="wait-actions">
+      <button class="leave" id="leaveBtn">離開</button>
+      <button class="start hidden" id="startBtn">開始遊戲</button>
+    </div>
+    <div style="font-size:11px;color:var(--text-mute);margin-top:14px;letter-spacing:1px" id="waitNote">只有房主能開始遊戲</div>
+  </div>
+</div>
+
+<!-- ============ GAME SCREEN ============ -->
+<div id="game" class="screen hidden">
+  <div class="main">
+    <div class="topbar">
+      <div class="info-block">
+        <div class="lbl">手牌</div>
+        <div class="val" id="handNum">#0</div>
+      </div>
+      <div class="info-block">
+        <div class="lbl">盲注</div>
+        <div class="val gold" id="blindsTxt">—</div>
+      </div>
+      <div class="info-block">
+        <div class="lbl">下次升盲</div>
+        <div class="val timer" id="blindTimer">—</div>
+      </div>
+      <div class="info-block">
+        <div class="lbl">底池</div>
+        <div class="val gold" id="topPot">—</div>
+      </div>
+      <div class="right">
+        <button class="icon" id="quitBtn">離開</button>
+      </div>
+    </div>
+
+    <div class="table-wrap">
+      <div class="felt" id="felt">
+        <div class="center">
+          <div class="pot">
+            <div class="lbl">POT</div>
+            <div class="val" id="potVal">0</div>
+          </div>
+          <div class="community" id="community"></div>
+        </div>
+        <div class="seat" data-pos="0"><div class="hole"></div><div class="avatar">🧑</div><div class="name-plate"><div class="name">—</div><div class="chips">0</div></div><div class="status"></div><div class="bet" style="display:none"></div></div>
+        <div class="seat" data-pos="1"><div class="hole"></div><div class="avatar">🧑</div><div class="name-plate"><div class="name">—</div><div class="chips">0</div></div><div class="status"></div><div class="bet" style="display:none"></div></div>
+        <div class="seat" data-pos="2"><div class="hole"></div><div class="avatar">🧑</div><div class="name-plate"><div class="name">—</div><div class="chips">0</div></div><div class="status"></div><div class="bet" style="display:none"></div></div>
+        <div class="seat" data-pos="3"><div class="hole"></div><div class="avatar">🧑</div><div class="name-plate"><div class="name">—</div><div class="chips">0</div></div><div class="status"></div><div class="bet" style="display:none"></div></div>
+        <div class="seat" data-pos="4"><div class="hole"></div><div class="avatar">🧑</div><div class="name-plate"><div class="name">—</div><div class="chips">0</div></div><div class="status"></div><div class="bet" style="display:none"></div></div>
+        <div class="seat" data-pos="5"><div class="hole"></div><div class="avatar">🧑</div><div class="name-plate"><div class="name">—</div><div class="chips">0</div></div><div class="status"></div><div class="bet" style="display:none"></div></div>
+      </div>
+    </div>
+
+    <div class="actions">
+      <div class="turn-timer">
+        <span class="lbl">思考時間</span>
+        <div class="bar"><div class="fill" id="turnFill" style="width:100%"></div></div>
+        <span class="sec" id="turnSec">—</span>
+      </div>
+      <div class="action-row">
+        <div class="btns" id="actionBtns">
+          <button id="btnFold" class="danger" disabled>棄牌</button>
+          <button id="btnCheck" disabled>過牌</button>
+          <button id="btnCall" disabled>跟注</button>
+          <button id="btnRaise" class="primary" disabled>加注</button>
+          <button id="btnAllIn" class="primary" disabled>All-in</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="raise-float" id="raiseFloat">
+      <div class="raise-handle">⋮⋮ 加注</div>
+      <div class="raise-val" id="raiseVal">0</div>
+      <div class="vrange-wrap">
+        <div class="vrange-track"><div class="vrange-fill" id="vrangeFill"></div><div class="vrange-thumb" id="vrangeThumb"></div></div>
+        <input type="range" id="raiseRange" min="0" max="10000" step="50" value="0">
+      </div>
+      <div class="quick">
+        <button data-quick="min">Min</button>
+        <button data-quick="0.5">½ Pot</button>
+        <button data-quick="1">Pot</button>
+        <button data-quick="max">Max</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="sidebar">
+    <h4>籌碼排行</h4>
+    <div class="panel-block">
+      <div class="stack-ranking" id="stackRanking"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ END SCREEN ============ -->
+<div id="end" class="screen hidden">
+  <div class="end-card">
+    <h2 id="endTitle">錦標賽結束</h2>
+    <table class="ranking-table">
+      <thead><tr><th>名次</th><th>玩家</th><th>淘汰於</th></tr></thead>
+      <tbody id="endTable"></tbody>
+    </table>
+    <button id="endLobby">回大廳</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+// ============ 工具 ============
+const $ = s => document.querySelector(s);
+const $$ = s => document.querySelectorAll(s);
+const fmt = n => (n||0).toLocaleString('en-US');
+const SUIT_SYM = { s:'♠', h:'♥', d:'♦', c:'♣' };
+function toast(msg, dur=2000){
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._h);
+  t._h = setTimeout(()=> t.classList.remove('show'), dur);
+}
+function showBigOverlay(stage, title, desc, ms=2500){
+  const old = document.querySelector('.big-overlay');
+  if(old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'big-overlay';
+  el.innerHTML = `<div class="big-card">
+    <div class="big-stage">${stage||''}</div>
+    <div class="big-title">${title||''}</div>
+    ${desc?`<div class="big-desc">${desc}</div>`:''}
+  </div>`;
+  document.body.appendChild(el);
+  setTimeout(()=>{ el.classList.add('fade-out'); setTimeout(()=> el.remove(), 300); }, ms);
+}
+
+// ============ 狀態 ============
+let ws = null;
+let myId = null;
+let myName = '玩家';
+let roomCode = null;
+let lobby = null;
+let lastState = null;
+let isHost = false;
+let turnTickerId = null;
+let myMode = 'create';
+
+// ============ Lobby UI ============
+$('#modeCreate').addEventListener('click', ()=>{
+  myMode = 'create';
+  $('#modeCreate').classList.add('active');
+  $('#modeJoin').classList.remove('active');
+  $('#createForm').classList.remove('hidden');
+  $('#joinForm').classList.add('hidden');
+  $('#btnGo').textContent = '建立房間';
+});
+$('#modeJoin').addEventListener('click', ()=>{
+  myMode = 'join';
+  $('#modeJoin').classList.add('active');
+  $('#modeCreate').classList.remove('active');
+  $('#createForm').classList.add('hidden');
+  $('#joinForm').classList.remove('hidden');
+  $('#btnGo').textContent = '加入房間';
+});
+
+$('#btnGo').addEventListener('click', ()=>{
+  const name = ($('#playerName').value || '').trim() || '玩家';
+  myName = name;
+  if(!ws || ws.readyState !== WebSocket.OPEN){
+    toast('連線還沒建立，等等再試');
+    return;
+  }
+  if(myMode === 'create'){
+    const aiCount = +$('#aiCount').value || 0;
+    const baseTurnSec = +$('#baseTurnSec').value || 20;
+    const blindMs = (+$('#blindSec').value || 120) * 1000;
+    sendWS({ type:'create-room', name, settings:{ aiCount, baseTurnSec, blindMs } });
+  } else {
+    const code = ($('#roomCode').value || '').trim().toUpperCase();
+    if(!code){ toast('請輸入邀請碼'); return; }
+    sendWS({ type:'join-room', name, code });
+  }
+});
+
+// 從 URL hash 讀邀請碼
+const urlCode = new URLSearchParams(location.search).get('code');
+if(urlCode){
+  $('#modeJoin').click();
+  $('#roomCode').value = urlCode.toUpperCase();
+}
+
+// ============ Wait Room UI ============
+function showWaitRoom(){
+  $('#lobby').classList.add('hidden');
+  $('#wait').classList.remove('hidden');
+  $('#game').classList.add('hidden');
+  $('#end').classList.add('hidden');
+}
+function renderWaitRoom(){
+  if(!lobby) return;
+  $('#waitCode').textContent = lobby.code;
+  const list = $('#waitPlayers');
+  list.innerHTML = '';
+  lobby.players.forEach(p=>{
+    const row = document.createElement('div');
+    row.className = 'wait-player' + (p.id === lobby.hostId ? ' host':'');
+    const isMe = p.id === myId;
+    row.innerHTML = `<span class="ico">${p.isAI?'🤖':'🧑'}</span><span class="name">${p.name}</span>${isMe?'<span class="you">你</span>':''}`;
+    list.appendChild(row);
+  });
+  isHost = lobby.hostId === myId;
+  if(isHost){
+    $('#startBtn').classList.remove('hidden');
+    $('#waitNote').textContent = `共 ${lobby.players.length} 人 + ${lobby.settings.aiCount} 個 AI、思考 ${lobby.settings.baseTurnSec}s、升盲 ${lobby.settings.blindMs/1000}s`;
+  } else {
+    $('#startBtn').classList.add('hidden');
+    $('#waitNote').textContent = '等房主開始遊戲…';
+  }
+}
+$('#copyCodeBtn').addEventListener('click', async ()=>{
+  const url = `${location.origin}${location.pathname}?code=${lobby.code}`;
+  try { await navigator.clipboard.writeText(url); toast('連結已複製'); } catch(e){ toast(url); }
+});
+$('#leaveBtn').addEventListener('click', ()=>{
+  sendWS({ type:'leave-room' });
+  location.reload();
+});
+$('#startBtn').addEventListener('click', ()=>{
+  sendWS({ type:'start-game' });
+});
+
+// ============ Game UI ============
+function showGame(){
+  $('#lobby').classList.add('hidden');
+  $('#wait').classList.add('hidden');
+  $('#game').classList.remove('hidden');
+  $('#end').classList.add('hidden');
+}
+
+// 把 server 的 player 列表（不固定 6 人）映射到 6 個座位
+// 玩家自己永遠在 pos 0，其他人按順序排
+function mapToSeats(state){
+  const players = state.players;
+  const myIdx = players.findIndex(p=> p.id === myId);
+  const order = [];
+  if(myIdx >= 0){
+    for(let i=0;i<players.length;i++){
+      order.push(players[(myIdx + i) % players.length]);
+    }
+  } else {
+    // 觀戰：照原順序
+    for(let i=0;i<players.length;i++) order.push(players[i]);
+  }
+  const seatMap = new Array(6).fill(null);
+  for(let i=0;i<order.length && i<6;i++){
+    seatMap[i] = order[i];
+  }
+  return seatMap;
+}
+
+function renderTable(state){
+  if(!state) return;
+  $('#handNum').textContent = '#' + state.handNum;
+  $('#blindsTxt').textContent = `${fmt(state.sb)} / ${fmt(state.bb)}`;
+  $('#topPot').textContent = fmt(state.pot);
+  $('#potVal').textContent = fmt(state.pot);
+
+  // Community
+  const comm = $('#community');
+  comm.innerHTML = '';
+  for(let i=0;i<5;i++){
+    if(state.community[i]){
+      comm.appendChild(cardEl(state.community[i]));
+    } else {
+      const ph = document.createElement('div');
+      ph.className = 'card placeholder';
+      comm.appendChild(ph);
+    }
+  }
+
+  // Seats
+  const seats = $$('.seat');
+  const map = mapToSeats(state);
+  for(let i=0;i<6;i++){
+    const seat = seats[i];
+    const p = map[i];
+    if(!p){
+      seat.style.display = 'none';
+      continue;
+    }
+    seat.style.display = '';
+    seat.classList.toggle('eliminated', !p.alive);
+    seat.classList.toggle('folded', p.alive && p.folded);
+    seat.classList.toggle('active', state.currentPlayerId === p.id && state.street !== 'showdown');
+    seat.classList.toggle('dealer', state.dealerPos === state.players.indexOf(p));
+    seat.classList.toggle('you', p.id === myId);
+    seat.querySelector('.name').textContent = p.name + (p.isAI?' 🤖':'');
+    seat.querySelector('.chips').textContent = fmt(p.chips);
+
+    const hole = seat.querySelector('.hole');
+    hole.innerHTML = '';
+    if(p.hasHole){
+      // 自己看得到面、別人看不到（除非 server 在 showdown 時送 reveal）
+      const cards = p.hole;
+      for(let j=0;j<2;j++){
+        if(cards && cards[j]){
+          hole.appendChild(cardEl(cards[j], true));
+        } else {
+          const back = document.createElement('div');
+          back.className = 'card back small';
+          hole.appendChild(back);
+        }
+      }
+    }
+
+    const betEl = seat.querySelector('.bet');
+    if(p.bet > 0){ betEl.textContent = fmt(p.bet); betEl.style.display=''; }
+    else { betEl.style.display = 'none'; }
+
+    const status = seat.querySelector('.status');
+    if(!p.alive){ status.textContent='已淘汰'; status.className='status'; }
+    else if(p.folded){ status.textContent='棄牌'; status.className='status fold'; }
+    else if(p.allIn){ status.textContent='ALL IN'; status.className='status allin'; }
+    else { status.textContent=''; status.className='status'; }
+
+    // SB / BB badge
+    seat.querySelectorAll('.badge').forEach(b=> b.remove());
+    const playerIdxInState = state.players.findIndex(x=> x.id === p.id);
+    if(playerIdxInState === state.sbPos){
+      const b = document.createElement('div'); b.className='badge sb'; b.textContent='SB'; seat.appendChild(b);
+    }
+    if(playerIdxInState === state.bbPos){
+      const b = document.createElement('div'); b.className='badge bb'; b.textContent='BB'; seat.appendChild(b);
+    }
+  }
+
+  renderStackRanking(state);
+}
+
+function cardEl(c, small){
+  const el = document.createElement('div');
+  el.className = `card ${c.suit}` + (small?' small':'');
+  el.innerHTML = `<div class="r">${c.rank==='T'?'10':c.rank}</div><div class="s">${SUIT_SYM[c.suit]||c.suit}</div>`;
+  return el;
+}
+
+function renderStackRanking(state){
+  const c = $('#stackRanking');
+  if(!c) return;
+  const all = state.players.slice();
+  const ranked = all.sort((a,b)=>{
+    if(a.alive !== b.alive) return a.alive ? -1 : 1;
+    return b.chips - a.chips;
+  });
+  const maxChips = Math.max(1, ...ranked.filter(p=>p.alive).map(p=>p.chips));
+  const oldTops = {};
+  Array.from(c.children).forEach(child=>{
+    if(child.dataset.id !== undefined) oldTops[child.dataset.id] = child.getBoundingClientRect().top;
+  });
+  c.innerHTML = '';
+  ranked.forEach((p, i)=>{
+    const row = document.createElement('div');
+    row.className = 'rank-row';
+    row.dataset.id = p.id;
+    if(p.id === myId) row.classList.add('you');
+    if(!p.alive) row.classList.add('eliminated');
+    const bb = state.bb > 0 ? Math.floor(p.chips / state.bb) : 0;
+    const w = p.alive ? Math.min(100, (p.chips / maxChips) * 100) : 0;
+    row.innerHTML = `
+      <div class="rr-num">${i+1}</div>
+      <div class="rr-mid">
+        <div class="rr-name">${p.name}</div>
+        <div class="rr-bar"><div class="rr-fill" style="width:${w}%"></div></div>
+      </div>
+      <div class="rr-bb">${bb}<span style="font-size:9px;margin-left:1px">BB</span></div>
+    `;
+    c.appendChild(row);
+  });
+  Array.from(c.children).forEach(child=>{
+    const id = child.dataset.id;
+    if(oldTops[id] === undefined) return;
+    const newTop = child.getBoundingClientRect().top;
+    const delta = oldTops[id] - newTop;
+    if(Math.abs(delta) > 1){
+      child.style.transition = 'none';
+      child.style.transform = `translateY(${delta}px)`;
+      requestAnimationFrame(()=>{ requestAnimationFrame(()=>{ child.style.transition=''; child.style.transform=''; }); });
+    }
+  });
+}
+
+// ============ Action UI ============
+let myTurnDeadline = 0;
+let myValidActions = [];
+let myNeed = 0;
+let myMinRaise = 0;
+let myMaxRaise = 0;
+
+function setMyTurn(t){
+  myTurnDeadline = t.deadline || 0;
+  myValidActions = t.validActions || [];
+  myNeed = t.need || 0;
+  myMinRaise = t.minRaiseTo || 0;
+  myMaxRaise = t.maxRaiseTo || 0;
+
+  $('#btnFold').disabled = !myValidActions.includes('fold');
+  $('#btnCheck').disabled = !myValidActions.includes('check');
+  $('#btnCall').disabled = !myValidActions.includes('call');
+  $('#btnRaise').disabled = !myValidActions.includes('raise');
+  $('#btnAllIn').disabled = !myValidActions.includes('allin');
+
+  $('#btnCall').innerHTML = myNeed>0
+    ? `<span class="lbl-txt">跟注</span><span class="amt">${fmt(myNeed)}</span>`
+    : `<span class="lbl-txt">過牌</span>`;
+
+  // 設定 raise range
+  const range = $('#raiseRange');
+  range.min = myMinRaise;
+  range.max = Math.max(myMinRaise + 1, myMaxRaise);
+  range.value = Math.min(myMaxRaise, Math.max(myMinRaise, myMinRaise + (myMaxRaise - myMinRaise) * 0.3));
+  updateRaiseVisual();
+}
+function clearMyTurn(){
+  myValidActions = [];
+  $$('.btns button').forEach(b=> b.disabled = true);
+  $('#turnFill').style.width = '100%';
+  $('#turnSec').textContent = '—';
+}
+
+function updateRaiseVisual(){
+  const range = $('#raiseRange');
+  const v = +range.value;
+  const min = +range.min, max = +range.max;
+  const pct = max>min ? (v-min)/(max-min)*100 : 0;
+  $('#raiseVal').textContent = fmt(v);
+  $('#vrangeFill').style.height = pct + '%';
+  $('#vrangeThumb').style.bottom = pct + '%';
+  if($('#btnRaise')){
+    $('#btnRaise').innerHTML = `<span class="lbl-txt">${myValidActions.includes('raise')?'加注':'下注'}</span><span class="amt">${fmt(v)}</span>`;
+  }
+}
+
+$('#raiseRange').addEventListener('input', updateRaiseVisual);
+$$('.raise-float .quick button').forEach(b=>{
+  b.addEventListener('click', ()=>{
+    if(!lastState) return;
+    const range = $('#raiseRange');
+    const q = b.dataset.quick;
+    let v;
+    if(q === 'min') v = +range.min;
+    else if(q === 'max') v = +range.max;
+    else {
+      const myP = lastState.players.find(p=> p.id === myId);
+      const pot = lastState.pot;
+      v = Math.floor((myP?.bet || 0) + pot * (+q));
+    }
+    v = Math.min(+range.max, Math.max(+range.min, v));
+    range.value = v;
+    updateRaiseVisual();
+  });
+});
+
+$('#btnFold').addEventListener('click', ()=> sendAction({ type:'fold' }));
+$('#btnCheck').addEventListener('click', ()=> sendAction({ type:'check' }));
+$('#btnCall').addEventListener('click', ()=> sendAction({ type:'call' }));
+$('#btnRaise').addEventListener('click', ()=>{
+  const v = +$('#raiseRange').value;
+  sendAction({ type:'raise', amount: v });
+});
+$('#btnAllIn').addEventListener('click', ()=> sendAction({ type:'allin' }));
+
+document.addEventListener('keydown', e=>{
+  if(myValidActions.length === 0) return;
+  if(e.target.tagName === 'INPUT') return;
+  const k = e.key.toLowerCase();
+  if(k==='f' && myValidActions.includes('fold')) sendAction({ type:'fold' });
+  else if(k==='c' && myValidActions.includes('check')) sendAction({ type:'check' });
+  else if(k==='c' && myValidActions.includes('call')) sendAction({ type:'call' });
+  else if(k==='r' && myValidActions.includes('raise')) sendAction({ type:'raise', amount: +$('#raiseRange').value });
+  else if(k==='a' && myValidActions.includes('allin')) sendAction({ type:'allin' });
+});
+
+function sendAction(action){
+  if(myValidActions.length === 0) return;
+  sendWS({ type:'action', action });
+  clearMyTurn();
+}
+
+// 思考時間倒數渲染
+function startTurnTicker(){
+  if(turnTickerId) clearInterval(turnTickerId);
+  turnTickerId = setInterval(()=>{
+    if(!myTurnDeadline){
+      $('#turnFill').style.width = '100%';
+      $('#turnSec').textContent = '—';
+      return;
+    }
+    const remain = Math.max(0, myTurnDeadline - Date.now());
+    const total = lastState?.players?.length ? (lobby?.settings?.baseTurnSec || 20) * 1000 : 20000;
+    const pct = Math.min(100, (remain/total) * 100);
+    const fill = $('#turnFill');
+    fill.style.width = pct + '%';
+    $('#turnSec').textContent = Math.ceil(remain/1000) + 's';
+    fill.classList.toggle('warn', pct < 40);
+    fill.classList.toggle('danger', pct < 15);
+  }, 100);
+}
+startTurnTicker();
+
+// ============ End screen ============
+function showEnd(rankings){
+  $('#game').classList.add('hidden');
+  $('#end').classList.remove('hidden');
+  const me = rankings.find(r=> r.id === myId);
+  $('#endTitle').textContent = me && me.rank === 1 ? '🎉 你是冠軍！' : '錦標賽結束';
+  const tbody = $('#endTable');
+  tbody.innerHTML = rankings.map(r=>`
+    <tr class="${r.id===myId?'you':''}">
+      <td>${r.rank}</td>
+      <td>${r.name}</td>
+      <td>${r.alive?'仍在桌上':`第 ${r.eliminatedAtHand||'?'} 手`}</td>
+    </tr>
+  `).join('');
+}
+$('#endLobby').addEventListener('click', ()=> location.reload());
+$('#quitBtn').addEventListener('click', ()=>{
+  if(confirm('確定要離開？')) location.reload();
+});
+
+// ============ WebSocket ============
+function connect(){
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  const url = `${proto}//${location.host}`;
+  ws = new WebSocket(url);
+  ws.addEventListener('open', ()=>{
+    $('#connState').textContent = '已連線';
+    $('#connState').className = 'conn-state ok';
+  });
+  ws.addEventListener('close', ()=>{
+    $('#connState').textContent = '連線中斷';
+    $('#connState').className = 'conn-state bad';
+    setTimeout(connect, 2000);
+  });
+  ws.addEventListener('error', ()=>{
+    $('#connState').textContent = '連線錯誤';
+    $('#connState').className = 'conn-state bad';
+  });
+  ws.addEventListener('message', (ev)=>{
+    let m;
+    try { m = JSON.parse(ev.data); } catch(e){ return; }
+    handleMessage(m);
+  });
+}
+function sendWS(msg){
+  if(!ws || ws.readyState !== WebSocket.OPEN) return;
+  ws.send(JSON.stringify(msg));
+}
+
+function handleMessage(m){
+  switch(m.type){
+    case 'room-created':
+      myId = m.playerId;
+      roomCode = m.code;
+      lobby = m.lobby;
+      showWaitRoom();
+      renderWaitRoom();
+      break;
+    case 'room-joined':
+      myId = m.playerId;
+      roomCode = m.code;
+      lobby = m.lobby;
+      showWaitRoom();
+      renderWaitRoom();
+      break;
+    case 'spectator-joined':
+      myId = null;
+      roomCode = m.code;
+      lobby = m.lobby;
+      toast('遊戲已開始，你會以觀戰模式進入');
+      showGame();
+      break;
+    case 'lobby-update':
+      lobby = m.lobby;
+      renderWaitRoom();
+      break;
+    case 'game-started':
+      showGame();
+      toast('遊戲開始！');
+      break;
+    case 'game-state':
+      lastState = m.state;
+      renderTable(m.state);
+      if(m.yourTurn){
+        setMyTurn(m.yourTurn);
+      } else {
+        clearMyTurn();
+      }
+      break;
+    case 'action-result':
+      // server 已經在 game-state 內反映了，這裡只做動畫提示（簡化版可省）
+      break;
+    case 'street':
+      // 新公牌 — game-state 也會更新
+      break;
+    case 'showdown':
+      handleShowdown(m.result);
+      break;
+    case 'blind-up':
+      showBigOverlay(`STAGE ${m.level}`, `第 ${m.level} 階段`, `盲注 ${fmt(m.sb)} / ${fmt(m.bb)}`, 2500);
+      break;
+    case 'blind-tick':
+      const s = Math.ceil(m.msLeft/1000);
+      $('#blindTimer').textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+      break;
+    case 'tournament-end':
+      showEnd(m.rankings);
+      break;
+    case 'error':
+      toast('錯誤：' + m.msg);
+      break;
+    case 'pong':
+      break;
+  }
+}
+
+function handleShowdown(r){
+  if(r.foldOut){
+    return;  // 一人贏，已經在 game-state 反映
+  }
+  // 顯示牌型大字
+  showBigOverlay('SHOWDOWN', r.handName || '', null, 3000);
+  // 把 reveals 的牌寫到 lastState 對應 player 的 hole（讓 renderTable 能掀牌）
+  if(r.reveals && lastState){
+    Object.entries(r.reveals).forEach(([pid, hole])=>{
+      const p = lastState.players.find(x=> x.id === pid);
+      if(p) p.hole = hole;
+    });
+    renderTable(lastState);
+  }
+  // 標贏家
+  if(r.winners){
+    setTimeout(()=>{
+      const seats = $$('.seat');
+      const map = mapToSeats(lastState);
+      for(let i=0;i<6;i++){
+        if(map[i] && r.winners.includes(map[i].id)){
+          seats[i].classList.add('winner');
+        }
+      }
+      // 高亮 matched cards
+      if(r.matchedKeys){
+        const keys = new Set(r.matchedKeys);
+        $$('.card').forEach(card=>{
+          // 沒辦法直接用 key 對 → 從 community + visible hole 反查
+        });
+        // 重建一次以 matched 標亮
+        markMatchedCards(keys);
+      }
+    }, 100);
+  }
+  // 6 秒後清掉
+  setTimeout(()=>{
+    $$('.seat.winner').forEach(s=> s.classList.remove('winner'));
+    $$('.card.matched').forEach(c=> c.classList.remove('matched'));
+  }, 6000);
+}
+
+function markMatchedCards(keys){
+  // community
+  if(!lastState) return;
+  const commEls = $('#community').children;
+  for(let i=0;i<lastState.community.length;i++){
+    if(keys.has(lastState.community[i].rank + lastState.community[i].suit)){
+      commEls[i].classList.add('matched');
+    }
+  }
+  // 各座位的 hole
+  const seats = $$('.seat');
+  const map = mapToSeats(lastState);
+  for(let i=0;i<6;i++){
+    const p = map[i];
+    if(!p || !p.hole) continue;
+    const holeEls = seats[i].querySelector('.hole').children;
+    p.hole.forEach((c, idx)=>{
+      if(keys.has(c.rank + c.suit) && holeEls[idx]){
+        holeEls[idx].classList.add('matched');
+      }
+    });
+  }
+}
+
+// 啟動
+connect();
+</script>
+</body>
+</html>

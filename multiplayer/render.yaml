@@ -1,0 +1,13 @@
+# Render Web Service 設定
+# Push 到 GitHub 後在 Render Dashboard 點 New + Web Service → 連 repo → Render 會自動讀這份檔
+services:
+  - type: web
+    name: poker-tournament
+    runtime: node
+    plan: free
+    rootDir: multiplayer
+    buildCommand: npm install
+    startCommand: npm start
+    envVars:
+      - key: NODE_VERSION
+        value: 20
