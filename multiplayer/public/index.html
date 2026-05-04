@@ -1367,7 +1367,7 @@ function showRankUpToast(fromName, toName){
   if(old) old.remove();
   const el = document.createElement('div');
   el.className = 'rank-up-toast';
-  el.innerHTML = `<span class="from">${fromName} →</span><span class="arrow">▲ 升級</span>${toName}`;
+  el.innerHTML = `<span class="from">${fromName} →</span><span class="arrow">▲</span>${toName}`;
   document.body.appendChild(el);
   setTimeout(()=> el.remove(), 2400);
 }

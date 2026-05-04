@@ -312,6 +312,18 @@ class Room {
     // 等 7.5 秒（client 顯示動畫 + 觸發 toast）後處理能力選擇 / 開新一手
     setTimeout(()=>{
       this.phase = 'between-hands';
+      // 冠軍判定：除了贏家外沒人能繼續打就直接結算，不再讓贏家挑能力
+      // （含活著且還有 chips 的人 + 預支人生還沒用過、可借大盲續命的人）
+      const continuing = this.game.players.filter(p =>
+        p.alive && (
+          p.chips > 0 ||
+          (p.talent === 'advance' && !p._advanceUsed)
+        )
+      ).length;
+      if(continuing <= 1){
+        this._nextHand();   // 會走到 _endTournament
+        return;
+      }
       // 有人被淘汰 → 給 killer 選一個能力
       if(result.killer && (result.eliminated || []).length){
         this._startPowerPick(result.killer, result.eliminated);
