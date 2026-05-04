@@ -448,13 +448,37 @@ class Game {
   }
 
   startHand(){
+    // 預支人生事件先收集，等下面 _triggers 被重設後再 push
+    const advanceEvents = [];
     // 移除已輸光的人
     this.players.forEach(p=>{
-      if(p.alive && p.chips <= 0){
-        p.alive = false;
-        p.eliminatedAtHand = this.handNum;
-        this.addLog(`✘ ${p.name} 出局`);
+      if(!p.alive) return;
+      if(p.chips > 0) return;
+      // === 角色：預支人生 ===
+      // All-in 輸掉、籌碼歸零的瞬間（在新一手開始前），向籌碼最多的對手借 1 個大盲撐一手
+      // 一場錦標賽只能用一次（_advanceUsed flag）
+      if(hasTalent(p, 'advance') && !p._advanceUsed){
+        const lender = this.players
+          .filter(x=> x.alive && x.id !== p.id && x.chips > this.bb)
+          .sort((a,b)=> b.chips - a.chips)[0];
+        if(lender){
+          const loan = this.bb;
+          lender.chips -= loan;
+          p.chips += loan;
+          p._advanceUsed = true;
+          advanceEvents.push({
+            label:'預支人生', icon:'💳',
+            fromId: lender.id, toId: p.id, amount: loan,
+            note:`${p.name} 向 ${lender.name} 借 ${loan} 大盲續命`,
+          });
+          this.addLog(`💳 預支人生：${p.name} 向 ${lender.name} 借 ${loan} 撐一手`);
+          return; // 不淘汰
+        }
       }
+      // 真的出局
+      p.alive = false;
+      p.eliminatedAtHand = this.handNum;
+      this.addLog(`✘ ${p.name} 出局`);
     });
     const aliveCount = this.players.filter(p=>p.alive).length;
     if(aliveCount <= 1){
@@ -463,6 +487,10 @@ class Game {
     }
     this.handNum++;
     this._triggers = [];
+    // 把上面收集的預支人生事件 push 進來（這樣不會被上一行清掉）
+    if(advanceEvents.length){
+      this._triggers.push(...advanceEvents);
+    }
     this.players.forEach(p=>{
       p.hole = [];
       p.folded = false;

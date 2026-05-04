@@ -199,8 +199,16 @@
   .action-row.turn-warn{--turn-color:#ff7b3a}
   .action-row.turn-warn::before{filter:drop-shadow(0 0 12px #ff7b3a)}
   .action-row.turn-danger{--turn-color:var(--red)}
-  .action-row.turn-danger::before{filter:drop-shadow(0 0 16px var(--red));animation-name:turnDrain,turnDangerFlash;animation-duration:var(--turn-duration,20s),.35s;animation-iteration-count:1,infinite;animation-direction:normal,alternate;animation-timing-function:linear,ease-in-out}
-  @keyframes turnDangerFlash{to{filter:drop-shadow(0 0 24px var(--red))}}
+  /* 不重新宣告 animation-name 以免 turnDrain 被重啟（會造成 ring 中段看起來慢、兩端快） */
+  .action-row.turn-danger::before{filter:drop-shadow(0 0 16px var(--red))}
+  /* danger 閃爍效果走獨立的 ::after，不影響 ::before 的 drain 進度 */
+  .action-row.turn-danger::after{
+    content:'';position:absolute;inset:-4px;border-radius:18px;
+    pointer-events:none;box-shadow:0 0 0 2px var(--red),0 0 18px var(--red);
+    opacity:0;z-index:-1;
+    animation:turnDangerFlash .35s ease-in-out infinite alternate;
+  }
+  @keyframes turnDangerFlash{from{opacity:.2}to{opacity:.85}}
   .action-row .turn-sec-badge{
     position:absolute;
     top:-14px;
@@ -236,7 +244,9 @@
   .btns button:disabled{opacity:.18;filter:grayscale(.8)}
 
   /* 加注 floating */
-  .raise-float{position:fixed;right:24px;top:50%;transform:translateY(-50%);width:144px;background:rgba(20,26,32,.96);border:1px solid var(--felt-edge);border-radius:12px;padding:0 12px 10px;z-index:11;box-shadow:0 8px 28px rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;gap:8px}
+  .raise-float{position:fixed;right:24px;top:50%;transform:translateY(-50%);width:144px;background:rgba(20,26,32,.96);border:1px solid var(--felt-edge);border-radius:12px;padding:0 12px 10px;z-index:11;box-shadow:0 8px 28px rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;gap:8px;transition:opacity .25s ease}
+  /* 沒輪到 / 沒可用動作時，加注條淡出免擋畫面 */
+  .raise-float.idle{opacity:.2;pointer-events:none}
   .raise-handle{cursor:move;text-align:center;font-size:11px;color:var(--gold);letter-spacing:4px;font-weight:700;padding:8px 0 6px;width:100%;border-bottom:1px solid var(--felt-edge)}
   .raise-val{font-size:22px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;background:rgba(0,0,0,.45);padding:6px 12px;border-radius:6px;min-width:108px;text-align:center;border:1px solid var(--gold-2)}
   .vrange-wrap{position:relative;width:48px;height:140px}
@@ -269,6 +279,32 @@
   .rr-bar{height:8px;background:rgba(0,0,0,.4);border-radius:99px;overflow:hidden}
   .rr-fill{height:100%;background:linear-gradient(90deg,var(--gold-2),var(--gold));transition:width .55s cubic-bezier(.5,.05,.3,1);border-radius:99px}
   .rr-bb{font-size:14px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;text-align:right}
+
+  /* 中途淘汰彈窗（玩家被淘汰但比賽還沒結束） */
+  .elim-overlay{position:fixed;inset:0;z-index:190;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);animation:elimFadeIn .3s ease}
+  @keyframes elimFadeIn{from{opacity:0}to{opacity:1}}
+  .elim-card{
+    background:linear-gradient(135deg,#1a2530,#0a0d10);
+    border:3px solid var(--gold);border-radius:18px;
+    padding:28px 36px;max-width:420px;width:100%;text-align:center;
+    box-shadow:0 0 80px rgba(231,181,59,.4);
+    animation:elimPop .42s cubic-bezier(.5,1.6,.5,1) forwards
+  }
+  @keyframes elimPop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
+  .elim-title{font-size:30px;font-weight:900;color:var(--red);letter-spacing:8px;margin-bottom:8px;text-shadow:0 0 30px var(--red)}
+  .elim-rank{font-size:18px;color:var(--text-dim);letter-spacing:3px;margin-bottom:18px}
+  .elim-rank strong{font-size:42px;color:var(--gold);font-weight:900;margin:0 6px;text-shadow:0 0 20px var(--gold)}
+  .elim-info{font-size:14px;color:var(--text-dim);letter-spacing:2px;margin-bottom:22px}
+  .elim-info strong{color:var(--gold);font-weight:800;margin:0 4px}
+  .elim-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
+  .elim-actions button{
+    padding:12px 22px;border-radius:8px;font-weight:800;letter-spacing:3px;font-size:14px;
+    border:1px solid var(--felt-edge);transition:all .15s
+  }
+  .elim-actions button.primary{background:var(--gold);color:#000;border-color:var(--gold)}
+  .elim-actions button.primary:hover{background:#fcc847}
+  .elim-actions button.secondary{background:var(--panel-2);color:var(--text)}
+  .elim-actions button.secondary:hover{border-color:var(--gold);color:var(--gold)}
 
   /* End screen */
   #end{align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#1a2530 0%,#0a0d10 80%)}
@@ -727,6 +763,13 @@
     .effect-toast .et-name{font-size:11px;padding:3px 10px;letter-spacing:2px}
     .effect-toast .et-amt{font-size:18px}
 
+    /* === Elimination modal mobile === */
+    .elim-card{padding:20px 18px}
+    .elim-title{font-size:24px;letter-spacing:5px}
+    .elim-rank{font-size:14px;letter-spacing:2px}
+    .elim-rank strong{font-size:32px}
+    .elim-actions button{padding:11px 16px;font-size:12px;letter-spacing:2px;flex:1;min-width:0}
+
     /* === End screen === */
     .end-card{padding:22px 18px;width:100%}
     .end-card h2{font-size:22px}
@@ -941,6 +984,7 @@
   <div class="mobile-toolbar" id="mobileToolbar">
     <button class="mt-btn" id="mtHandTypes" title="牌型大小">📜</button>
     <button class="mt-btn" id="mtRanking" title="籌碼排行">🏆</button>
+    <button class="mt-btn" id="mtLeave" title="離開回大廳" style="border-color:rgba(226,59,59,.45);color:var(--red)">🚪</button>
   </div>
   <div class="drawer-backdrop" id="drawerBackdrop"></div>
 </div>
@@ -1814,6 +1858,7 @@ function setMyTurn(t){
   $('#btnCall').disabled = !myValidActions.includes('call');
   $('#btnRaise').disabled = !myValidActions.includes('raise');
   $('#btnAllIn').disabled = !myValidActions.includes('allin');
+  updateRaiseFloatVisibility();
 
   // 啟動光圈動畫：實際剩餘時間，由 CSS keyframe 線性消逝
   const row = $('#actionRow');
@@ -1853,6 +1898,7 @@ function clearMyTurn(){
   myValidActions = [];
   myTurnDeadline = 0;
   $$('.btns button').forEach(b=> b.disabled = true);
+  updateRaiseFloatVisibility();
   // 立刻關掉光圈動畫 + 清計時器
   const row = $('#actionRow');
   if(row){
@@ -1864,6 +1910,15 @@ function clearMyTurn(){
   if(myTurnDangerTimer){ clearTimeout(myTurnDangerTimer); myTurnDangerTimer = null; }
   const badge = $('#turnSecBadge');
   if(badge) badge.textContent = '—';
+}
+
+// 沒有任何可用動作時，把加注條淡到 20% 並停止接受點擊
+function updateRaiseFloatVisibility(){
+  const float = $('#raiseFloat');
+  if(!float) return;
+  const anyEnabled = ['btnFold','btnCheck','btnCall','btnRaise','btnAllIn']
+    .some(id => { const b = document.getElementById(id); return b && !b.disabled; });
+  float.classList.toggle('idle', !anyEnabled);
 }
 
 function updateRaiseVisual(){
@@ -1992,8 +2047,69 @@ function makeRaiseDraggable(){
 }
 makeRaiseDraggable();
 
+// ============ 我是不是還活著 ============
+function isMeAlive(){
+  if(!lastState || !Array.isArray(lastState.players)) return true;
+  const me = lastState.players.find(p=> p.id === myId);
+  return !me || me.alive !== false;
+}
+
+// 淘汰結算 modal（中途被打掛時跳出）
+let _elimModalShown = false;
+function showEliminationModal(rank, handNum){
+  if(_elimModalShown) return;
+  _elimModalShown = true;
+  // 關掉所有對手能力相關 overlay，避免疊一起
+  closeChoosePowerModal();
+  closePickPendingBanner();
+  document.querySelectorAll('.power-desc-overlay').forEach(e=> e.remove());
+
+  const overlay = document.createElement('div');
+  overlay.className = 'elim-overlay';
+  overlay.innerHTML = `
+    <div class="elim-card">
+      <div class="elim-title">你被淘汰</div>
+      <div class="elim-rank">第 <strong>${rank}</strong> 名</div>
+      <div class="elim-info">在第 <strong>${handNum||'?'}</strong> 手出局</div>
+      <div class="elim-actions">
+        <button class="secondary" data-act="watch">繼續觀戰</button>
+        <button class="primary" data-act="lobby">回大廳</button>
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e=>{
+    const btn = e.target.closest('button');
+    if(!btn) return;
+    if(btn.dataset.act === 'lobby'){
+      location.reload();
+    } else {
+      overlay.remove();
+    }
+  });
+}
+
+// 偵測 alive → eliminated 的瞬間
+function checkMyEliminationTransition(prevState, nextState){
+  if(!prevState || !nextState) return;
+  const prevMe = (prevState.players||[]).find(p=> p.id === myId);
+  const nextMe = (nextState.players||[]).find(p=> p.id === myId);
+  if(!prevMe || !nextMe) return;
+  const wasAlive = prevMe.alive !== false;
+  const nowDead = nextMe.alive === false;
+  if(wasAlive && nowDead){
+    // 名次 = 還活著的人數 + 1
+    const aliveCnt = (nextState.players||[]).filter(p=> p.alive !== false).length;
+    const rank = aliveCnt + 1;
+    const handNum = nextMe.eliminatedAtHand || nextState.handNum || '?';
+    showEliminationModal(rank, handNum);
+  }
+}
+
 // ============ End screen ============
 function showEnd(rankings){
+  _elimModalShown = false; // 比賽真結束時清掉，免得回大廳後狀態殘留
+  // 結算前把中途的淘汰彈窗關掉
+  document.querySelectorAll('.elim-overlay').forEach(e=> e.remove());
   $('#game').classList.add('hidden');
   $('#end').classList.remove('hidden');
   const me = rankings.find(r=> r.id === myId);
@@ -2077,19 +2193,25 @@ function handleMessage(m){
       showChoosePowerModal(m.choices || [], m.deadline);
       break;
     case 'power-pick-pending':
-      if(m.killerId !== myId){
+      // 我自己被淘汰了就不用看對手在選什麼
+      if(m.killerId !== myId && isMeAlive()){
         showPickPendingBanner(m.killerName || '某人', m.deadline);
       }
       break;
     case 'power-applied':
       closeChoosePowerModal();
       closePickPendingBanner();
-      showPowerAppliedOverlay(m.playerName, m.power);
-      if(m.power){
-        showEffectToast('★ ' + m.power.icon + ' ' + m.power.name, `<strong>${m.playerName}</strong> 獲得能力`, 'purple');
+      // 被淘汰就不秀對手選了什麼
+      if(isMeAlive()){
+        showPowerAppliedOverlay(m.playerName, m.power);
+        if(m.power){
+          showEffectToast('★ ' + m.power.icon + ' ' + m.power.name, `<strong>${m.playerName}</strong> 獲得能力`, 'purple');
+        }
       }
       break;
     case 'game-state':
+      // 淘汰偵測：上一個 state 我還活著、這個 state 死了 → 跳結算彈窗
+      checkMyEliminationTransition(lastState, m.state);
       lastState = m.state;
       if(m.state.mode){
         updateModeBanner(m.state.mode, m.state.level, '');
@@ -2332,21 +2454,36 @@ function markMatchedCards(keys){
   const backdrop = document.getElementById('drawerBackdrop');
   const closeAll = () => {
     Object.values(sections).forEach(s => s.classList.remove('open'));
-    backdrop.classList.remove('open');
+    if(backdrop) backdrop.classList.remove('open');
     document.body.classList.remove('drawer-open');
   };
   const openOne = key => {
     closeAll();
     if(!sections[key]) return;
     sections[key].classList.add('open');
-    backdrop.classList.add('open');
+    if(backdrop) backdrop.classList.add('open');
     document.body.classList.add('drawer-open');
   };
   const btnHand = document.getElementById('mtHandTypes');
   const btnRank = document.getElementById('mtRanking');
+  const btnLeave = document.getElementById('mtLeave');
   if(btnHand) btnHand.addEventListener('click', () => openOne('handTypes'));
   if(btnRank) btnRank.addEventListener('click', () => openOne('ranking'));
+  if(btnLeave) btnLeave.addEventListener('click', () => {
+    if(confirm('確定要離開房間？')) location.reload();
+  });
   if(backdrop) backdrop.addEventListener('click', closeAll);
+  // 點抽屜內任意空白處也可以關（除非點到要互動的 li / button / scrollbar）
+  Object.values(sections).forEach(d => {
+    d.addEventListener('click', e => {
+      // 點 close X 或抽屜外的 sibling 都會走別的 handler
+      // 這裡：只要不是點到「需要保留」的 child（目前沒有），整個抽屜都當關閉觸發區
+      if(e.target.closest('.drawer-close')) return; // 已有自己的 handler
+      // 排除 input/select/textarea/button 等互動元件，避免誤觸
+      if(e.target.closest('input,select,textarea,button[data-keep]')) return;
+      closeAll();
+    });
+  });
   document.querySelectorAll('.drawer-close').forEach(b => {
     b.addEventListener('click', closeAll);
   });
