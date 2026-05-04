@@ -597,6 +597,27 @@
 
   /* 別人在選能力時的 banner */
   .pick-pending-banner{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(124,77,255,.95);color:#fff;padding:12px 26px;border-radius:99px;font-size:15px;font-weight:700;letter-spacing:2px;z-index:140;box-shadow:0 8px 28px rgba(124,77,255,.5);display:flex;align-items:center;gap:12px}
+
+  /* 階段選擇：自己選完後的等待畫面 */
+  .stage-wait-overlay{
+    position:fixed;inset:0;z-index:160;
+    display:flex;align-items:center;justify-content:center;
+    background:rgba(0,0,0,.55);backdrop-filter:blur(4px);
+    animation:swcFadeIn .3s ease
+  }
+  @keyframes swcFadeIn{from{opacity:0}to{opacity:1}}
+  .stage-wait-card{
+    background:linear-gradient(135deg,#1a2530,#0a0d10);
+    border:2px solid var(--gold);border-radius:14px;
+    padding:24px 36px;text-align:center;max-width:380px;
+    box-shadow:0 0 60px rgba(231,181,59,.35)
+  }
+  .swc-spin{font-size:36px;margin-bottom:10px;animation:swcSpin 2.4s ease-in-out infinite}
+  @keyframes swcSpin{0%{transform:rotate(-15deg)}50%{transform:rotate(15deg)}100%{transform:rotate(-15deg)}}
+  .swc-title{font-size:13px;color:var(--text-mute);letter-spacing:5px;margin-bottom:6px}
+  .swc-count{font-size:42px;font-weight:900;color:var(--gold);font-variant-numeric:tabular-nums;letter-spacing:2px;margin-bottom:14px;text-shadow:0 0 20px rgba(231,181,59,.5)}
+  .swc-count span{display:inline-block}
+  .swc-hint{font-size:12px;color:var(--text-dim);letter-spacing:1px;line-height:1.6}
   .pick-pending-banner .cd{font-weight:900;font-size:17px;color:#fcc847;font-variant-numeric:tabular-nums}
 
   /* 能力 chip：垂直堆疊在座位邊上、不擋頭貼 */
@@ -873,6 +894,12 @@
       transition:opacity .25s
     }
     .drawer-backdrop.open{opacity:1;pointer-events:auto}
+
+    /* === stage waiting overlay mobile === */
+    .stage-wait-card{padding:20px 22px}
+    .swc-spin{font-size:30px}
+    .swc-count{font-size:32px;letter-spacing:1px}
+    .swc-hint{font-size:11px;letter-spacing:0}
 
     /* === Power-pick modal 縮一欄 === */
     .power-pick-card{padding:18px 14px;width:100%;border-radius:14px}
@@ -1551,6 +1578,10 @@ function showChoosePowerModal(choices, deadline, picksRemaining, isStagePick){
     if(!card) return;
     sendWS({ type:'select-power', powerId: card.dataset.id });
     closeChoosePowerModal();
+    // 階段選擇：自己送出後跳「等其他玩家」waiting overlay
+    if(isStagePick){
+      showStageWaitOverlay(_stageSubmittedCount + 1, _stageTotalCount);
+    }
   });
   if(choosePowerCdTimer) clearInterval(choosePowerCdTimer);
   choosePowerCdTimer = setInterval(()=>{
@@ -1595,11 +1626,15 @@ function closePickPendingBanner(){
   if(pickPendingTimer){ clearInterval(pickPendingTimer); pickPendingTimer = null; }
 }
 
-function showPowerAppliedOverlay(playerName, power){
+function showPowerAppliedOverlay(playerName, power, isStagePick){
   if(!power) return;
+  // 關掉前一個 reveal（避免階段揭曉時多張卡疊在一起）
+  document.querySelectorAll('.power-desc-overlay').forEach(o => o.remove());
   const overlay = document.createElement('div');
   overlay.className = 'power-desc-overlay';
+  const titleLine = isStagePick ? '<div style="font-size:11px;color:var(--text-mute);letter-spacing:6px;margin-bottom:6px">★ 階段揭曉</div>' : '';
   overlay.innerHTML = `<div class="power-desc-card">
+    ${titleLine}
     <div class="pdc-ico">${power.icon}</div>
     <div class="pdc-name">${power.name}</div>
     <div class="pdc-target"><strong>${playerName}</strong> 獲得能力</div>
@@ -1609,7 +1644,39 @@ function showPowerAppliedOverlay(playerName, power){
   document.body.appendChild(overlay);
   const close = ()=> overlay.remove();
   overlay.addEventListener('click', close);
-  setTimeout(close, 4000);
+  // 階段揭曉每張只停 1.4 秒（剛好在下一張到來前淡出），KO 揭曉維持 4 秒
+  setTimeout(close, isStagePick ? 1400 : 4000);
+}
+
+// 階段選擇 waiting overlay（自己選完後等其他玩家）
+let _stageWaitOverlay = null;
+function showStageWaitOverlay(submitted, total){
+  closeStageWaitOverlay();
+  const overlay = document.createElement('div');
+  overlay.className = 'stage-wait-overlay';
+  overlay.id = 'stageWaitOverlay';
+  overlay.innerHTML = `
+    <div class="stage-wait-card">
+      <div class="swc-spin">⏳</div>
+      <div class="swc-title">已送出</div>
+      <div class="swc-count"><span id="swcSubmitted">${submitted}</span> / <span id="swcTotal">${total}</span></div>
+      <div class="swc-hint">等其他玩家選完，會依座位順序依序揭曉每個人選了什麼</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  _stageWaitOverlay = overlay;
+}
+function updateStageWaitCount(submitted, total){
+  if(!_stageWaitOverlay) return;
+  const sEl = document.getElementById('swcSubmitted');
+  const tEl = document.getElementById('swcTotal');
+  if(sEl) sEl.textContent = submitted;
+  if(tEl) tEl.textContent = total;
+}
+function closeStageWaitOverlay(){
+  if(_stageWaitOverlay){
+    _stageWaitOverlay.remove();
+    _stageWaitOverlay = null;
+  }
 }
 
 // 點 chip 顯示能力/角色說明
@@ -1657,6 +1724,8 @@ let myTalent = null;            // 我選的角色
 let lastMyHandType = -1;        // 上次我的牌型（用來偵測升級）
 let _inShowdownPhase = false;   // 沒人輪到行動（auto-runout / 等開牌）期間，不秀牌力升級 toast
 let _pendingRandomReveal = false; // 我選了「隨機」角色，等遊戲開始時揭曉用
+let _stageTotalCount = 0;         // 階段選擇：總共多少人要選
+let _stageSubmittedCount = 0;     // 階段選擇：已送出人數
 let playerSeatMap = new Map();  // playerId -> seat DOM
 
 // ============ 頭貼選擇器 ============
@@ -2694,25 +2763,40 @@ function handleMessage(m){
       showChoosePowerModal(m.choices || [], m.deadline, m.picksRemaining, m.isStagePick);
       break;
     case 'power-pick-pending':
+      // 階段選擇是大家同時挑，不用秀「X 正在選」banner
+      if(m.isStagePick) break;
       // 我自己被淘汰了就不用看對手在選什麼
       if(m.killerId !== myId && isMeAlive()){
         showPickPendingBanner(m.killerName || '某人', m.deadline, m.picksRemaining, m.isStagePick);
       }
       break;
     case 'stage-picks-start': {
-      // 階段獎勵開始：跳一個 toast 提醒
-      toast(`★ 階段 ${m.level} 獎勵：每位玩家選一個能力（盲注 ${m.sb}/${m.bb}）`);
+      // 階段獎勵開始：所有人同時選
+      _stageTotalCount = (m.participants || []).length;
+      _stageSubmittedCount = 0;
+      toast(`★ 階段 ${m.level} 獎勵：每位玩家挑一個能力 · 同時選 (${_stageTotalCount} 人)`, 3500);
+      break;
+    }
+    case 'stage-pick-submitted': {
+      // 有玩家送出選擇 → 更新計數
+      _stageSubmittedCount = m.submittedCount;
+      _stageTotalCount = m.totalCount || _stageTotalCount;
+      // 若我已開了 waiting overlay 就更新數字
+      updateStageWaitCount(_stageSubmittedCount, _stageTotalCount);
       break;
     }
     case 'stage-picks-end':
-      // 全員選完，開始下一手
+      // 全員揭曉完，開始下一手 → 關掉 waiting overlay
+      closeStageWaitOverlay();
+      _stageTotalCount = 0;
+      _stageSubmittedCount = 0;
       break;
     case 'power-applied':
       closeChoosePowerModal();
       closePickPendingBanner();
       // 被淘汰就不秀對手選了什麼
       if(isMeAlive()){
-        showPowerAppliedOverlay(m.playerName, m.power);
+        showPowerAppliedOverlay(m.playerName, m.power, m.isStagePick);
         if(m.power){
           showEffectToast('★ ' + m.power.icon + ' ' + m.power.name, `<strong>${m.playerName}</strong> 獲得能力`, 'purple');
         }

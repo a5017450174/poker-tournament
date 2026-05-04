@@ -187,79 +187,147 @@ class Room {
     this._startNewHand();
   }
 
-  // 階段選擇：升盲到 2 / 4 時，所有活著的玩家輪流挑一個能力
+  // 階段選擇：升盲到 2 / 4 時，所有活著的玩家「同時」挑能力
+  // 全部選完（或 30 秒到）才依序揭曉每個人選什麼，再開下一手
   _startStagePicks(level){
-    this._stagePickQueue = this.game.players.filter(p => p.alive).map(p => p.id);
-    this._stagePickLevel = level;
-    // 暫停升盲計時器（整段階段選擇期間都暫停）
+    const alivePlayers = this.game.players.filter(p => p.alive);
+    if(!alivePlayers.length){ this._startNewHand(); return; }
+
+    // 暫停升盲計時器（整段階段選擇期間暫停）
     if(this.blindTimer){ clearInterval(this.blindTimer); this.blindTimer = null; }
     this._blindElapsedAtPause = Date.now() - this.game.blindStartTs;
-    // 廣播：階段選擇開始
+
+    const deadline = Date.now() + 30000;
+    const choicesByPlayer = new Map();    // pid -> [{id,name,...}]
+    const picksByPlayer  = new Map();     // pid -> powerId（已選好）
+    const pendingHumans  = new Set();
+
+    for(const p of alivePlayers){
+      const choices = this.game.rollPowerChoices(p.id, 3);
+      if(!choices.length) continue;       // 能力都拿光了 → 略過
+      choicesByPlayer.set(p.id, choices);
+      if(p.isAI){
+        // AI 直接決定（隨機），但等大家都選好才公開
+        const pick = choices[Math.floor(Math.random() * choices.length)];
+        picksByPlayer.set(p.id, pick.id);
+      } else {
+        pendingHumans.add(p.id);
+      }
+    }
+
+    this._stagePickState = {
+      level,
+      choicesByPlayer,
+      picksByPlayer,
+      pendingHumans,
+      totalCount: choicesByPlayer.size,
+      deadline,
+      timer: null,
+      revealing: false,
+    };
+
+    // 廣播階段開始
     this.broadcast({
       type: 'stage-picks-start',
       level,
       sb: this.game.sb, bb: this.game.bb,
-      queue: this._stagePickQueue.slice(),
+      participants: alivePlayers.map(p => ({ id: p.id, name: p.name, avatar: p.avatar, isAI: !!p.isAI })),
     });
-    setTimeout(()=> this._processNextStagePick(), 600);
+
+    // 把選單發給每位真人玩家（同時）
+    for(const pid of pendingHumans){
+      const ws = this.humanIds.get(pid);
+      const choices = choicesByPlayer.get(pid);
+      if(ws){
+        send(ws, { type:'choose-power', choices, deadline, isStagePick: true });
+      }
+    }
+
+    // 沒有真人需要選 → 直接揭曉
+    if(pendingHumans.size === 0){
+      setTimeout(() => this._stagePicksAllDone(), 600);
+      return;
+    }
+
+    // 30 秒沒選 → 剩下沒選的隨機選
+    this._stagePickState.timer = setTimeout(() => {
+      const st = this._stagePickState;
+      if(!st) return;
+      for(const pid of st.pendingHumans){
+        const choices = st.choicesByPlayer.get(pid);
+        if(choices && choices.length){
+          const pick = choices[Math.floor(Math.random() * choices.length)];
+          st.picksByPlayer.set(pid, pick.id);
+        }
+      }
+      st.pendingHumans = new Set();
+      this._stagePicksAllDone();
+    }, 30000);
   }
 
-  _processNextStagePick(){
-    if(!this._stagePickQueue || !this._stagePickQueue.length){
-      // 全部選完 → 恢復升盲、開始新一手
-      this._stagePickQueue = null;
-      this._stagePickLevel = null;
+  // 玩家在階段選擇時送 select-power 進來
+  _handleStagePickSelect(playerId, powerId){
+    const st = this._stagePickState;
+    if(!st || st.revealing) return false;
+    if(!st.pendingHumans.has(playerId)) return false;
+    const choices = st.choicesByPlayer.get(playerId);
+    if(!choices || !choices.find(c => c.id === powerId)) return false;
+    st.picksByPlayer.set(playerId, powerId);
+    st.pendingHumans.delete(playerId);
+    // 廣播：某人選好了（不講選什麼）讓其他人看「3/5 已選」
+    const submittedCount = st.picksByPlayer.size;
+    this.broadcast({
+      type: 'stage-pick-submitted',
+      playerId,
+      submittedCount,
+      totalCount: st.totalCount,
+    });
+    // 全部選完 → 進揭曉
+    if(st.pendingHumans.size === 0){
+      if(st.timer){ clearTimeout(st.timer); st.timer = null; }
+      setTimeout(() => this._stagePicksAllDone(), 800);
+    }
+    return true;
+  }
+
+  _stagePicksAllDone(){
+    const st = this._stagePickState;
+    if(!st || st.revealing) return;
+    st.revealing = true;
+    if(st.timer){ clearTimeout(st.timer); st.timer = null; }
+
+    // 依座位順序依序揭曉，每張卡 1.5 秒
+    const order = this.game.players.filter(p => p.alive && st.picksByPlayer.has(p.id));
+    let delay = 200;
+    for(const p of order){
+      const powerId = st.picksByPlayer.get(p.id);
+      setTimeout(() => {
+        if(this.phase === 'ended' || this.game.ended) return;
+        this.game.awardPower(p.id, powerId);
+        const power = POWER_UPS.find(x => x.id === powerId);
+        this.broadcast({
+          type: 'power-applied',
+          playerId: p.id,
+          playerName: p.name,
+          powerId,
+          power: power || null,
+          isStagePick: true,
+        });
+      }, delay);
+      delay += 1500;
+    }
+
+    // 全部揭曉完 → 恢復升盲、開始新一手
+    setTimeout(() => {
+      this._stagePickState = null;
       if(this._blindElapsedAtPause){
         this.game.blindStartTs = Date.now() - this._blindElapsedAtPause;
         this._blindElapsedAtPause = 0;
       }
       this._startBlindTimer();
       this.broadcast({ type:'stage-picks-end' });
-      setTimeout(()=> this._startNewHand(), 800);
-      return;
-    }
-    const nextId = this._stagePickQueue.shift();
-    const player = this.game.players.find(p => p.id === nextId);
-    if(!player || !player.alive){
-      this._processNextStagePick();
-      return;
-    }
-    const choices = this.game.rollPowerChoices(nextId, 3);
-    if(!choices.length){
-      // 沒能力可選了（全拿過）→ 跳過
-      this._processNextStagePick();
-      return;
-    }
-    const deadline = Date.now() + 30000;
-    this.powerPickState = {
-      playerId: nextId, choices, deadline, timer: null,
-      kind: 'stage',
-    };
-
-    // 廣播：誰在選
-    this.broadcast({
-      type: 'power-pick-pending',
-      killerId: nextId, killerName: player.name,
-      eliminated: [], deadline,
-      isAI: !!player.isAI,
-      isStagePick: true,
-      stageLevel: this._stagePickLevel,
-    });
-
-    if(player.isAI){
-      const pick = choices[Math.floor(Math.random()*choices.length)];
-      setTimeout(()=> this._finishPowerPick(pick.id), 800);
-      return;
-    }
-    // 真人
-    const ws = this.humanIds.get(nextId);
-    if(ws){
-      send(ws, { type:'choose-power', choices, deadline, isStagePick: true });
-    }
-    this.powerPickState.timer = setTimeout(()=>{
-      const pick = choices[Math.floor(Math.random()*choices.length)];
-      this._finishPowerPick(pick.id);
-    }, 30000);
+      this._startNewHand();
+    }, delay + 600);
   }
 
   _startNewHand(){
@@ -466,9 +534,10 @@ class Room {
     }, 30000);
   }
 
+  // KO bonus 結束（KO 連抽走這條，階段選擇走 _stagePicksAllDone）
   _finishPowerPick(powerId){
     if(!this.powerPickState) return;
-    const { playerId, timer, kind } = this.powerPickState;
+    const { playerId, timer } = this.powerPickState;
     if(timer) clearTimeout(timer);
     this.game.awardPower(playerId, powerId);
     const player = this.game.players.find(p=> p.id === playerId);
@@ -482,13 +551,7 @@ class Room {
     });
     this.powerPickState = null;
 
-    // 階段選擇：處理下一個玩家
-    if(kind === 'stage'){
-      setTimeout(()=> this._processNextStagePick(), 1600);
-      return;
-    }
-
-    // KO bonus 多殺多抽（目前沒地方會觸發 _startPowerPick 走這條，保留邏輯供將來用）
+    // KO bonus 多殺多抽：還剩 picks 沒挑就再開一輪
     if(this._pendingPickCount > 0) this._pendingPickCount--;
     if(this._pendingPickCount > 0 && player && player.alive){
       setTimeout(()=> {
@@ -665,9 +728,16 @@ function handleMessage(ws, msg){
     case 'select-power': {
       if(!c) return;
       const room = rooms.get(c.roomCode);
-      if(!room || !room.powerPickState) return;
-      if(room.powerPickState.playerId !== c.playerId) return;
+      if(!room) return;
       const pid = (msg.powerId || '').toString();
+      // 階段選擇（並行）優先處理
+      if(room._stagePickState){
+        room._handleStagePickSelect(c.playerId, pid);
+        return;
+      }
+      // KO bonus（單人連抽）
+      if(!room.powerPickState) return;
+      if(room.powerPickState.playerId !== c.playerId) return;
       const valid = room.powerPickState.choices.find(x=> x.id === pid);
       if(!valid) return;
       room._finishPowerPick(pid);
