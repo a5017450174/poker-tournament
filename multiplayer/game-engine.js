@@ -1201,6 +1201,7 @@ class Game {
           bet: p.bet,
           totalBet: p.totalBet,
           alive: p.alive,
+          eliminatedAtHand: p.eliminatedAtHand || null,
           folded: p.folded,
           allIn: p.allIn,
           talent: p.talent || null,

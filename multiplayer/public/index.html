@@ -313,21 +313,39 @@
   .rr-bb{font-size:14px;font-weight:800;color:var(--gold);font-variant-numeric:tabular-nums;text-align:right}
 
   /* 中途淘汰彈窗（玩家被淘汰但比賽還沒結束） */
-  .elim-overlay{position:fixed;inset:0;z-index:190;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);animation:elimFadeIn .3s ease}
+  .elim-overlay{position:fixed;inset:0;z-index:190;display:flex;align-items:center;justify-content:center;padding:20px;background:rgba(0,0,0,.78);backdrop-filter:blur(6px);animation:elimFadeIn .3s ease;overflow-y:auto}
   @keyframes elimFadeIn{from{opacity:0}to{opacity:1}}
   .elim-card{
     background:linear-gradient(135deg,#1a2530,#0a0d10);
     border:3px solid var(--gold);border-radius:18px;
-    padding:28px 36px;max-width:420px;width:100%;text-align:center;
+    padding:24px 28px;max-width:480px;width:100%;text-align:center;
     box-shadow:0 0 80px rgba(231,181,59,.4);
-    animation:elimPop .42s cubic-bezier(.5,1.6,.5,1) forwards
+    animation:elimPop .42s cubic-bezier(.5,1.6,.5,1) forwards;
+    margin:auto
   }
   @keyframes elimPop{from{transform:scale(.6);opacity:0}to{transform:scale(1);opacity:1}}
-  .elim-title{font-size:30px;font-weight:900;color:var(--red);letter-spacing:8px;margin-bottom:8px;text-shadow:0 0 30px var(--red)}
-  .elim-rank{font-size:18px;color:var(--text-dim);letter-spacing:3px;margin-bottom:18px}
-  .elim-rank strong{font-size:42px;color:var(--gold);font-weight:900;margin:0 6px;text-shadow:0 0 20px var(--gold)}
-  .elim-info{font-size:14px;color:var(--text-dim);letter-spacing:2px;margin-bottom:22px}
+  .elim-title{font-size:28px;font-weight:900;color:var(--red);letter-spacing:8px;margin-bottom:6px;text-shadow:0 0 30px var(--red)}
+  .elim-rank{font-size:16px;color:var(--text-dim);letter-spacing:3px;margin-bottom:14px}
+  .elim-rank strong{font-size:38px;color:var(--gold);font-weight:900;margin:0 6px;text-shadow:0 0 20px var(--gold)}
+  .elim-info{font-size:13px;color:var(--text-dim);letter-spacing:2px;margin-bottom:18px}
   .elim-info strong{color:var(--gold);font-weight:800;margin:0 4px}
+  /* 排名表 */
+  .elim-table-wrap{margin:0 -4px 18px;text-align:left}
+  .elim-table{width:100%;border-collapse:collapse;font-size:13px}
+  .elim-table thead th{
+    font-size:10px;color:var(--text-mute);letter-spacing:2px;text-transform:uppercase;
+    padding:6px 8px;border-bottom:1px solid var(--felt-edge);font-weight:600;text-align:left
+  }
+  .elim-table tbody td{padding:8px 8px;border-bottom:1px solid rgba(255,255,255,.05)}
+  .elim-table .rk{width:32px;color:var(--gold);font-weight:900;font-variant-numeric:tabular-nums;font-size:14px}
+  .elim-table .who{display:flex;align-items:center;gap:8px}
+  .elim-table .ava{font-size:22px;line-height:1;flex-shrink:0}
+  .elim-table .nm{font-weight:700;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .elim-table .st{text-align:right;color:var(--text-dim);font-variant-numeric:tabular-nums;letter-spacing:1px;font-size:12px}
+  .elim-table tr.me td{background:rgba(231,181,59,.12)}
+  .elim-table tr.me .nm{color:var(--gold)}
+  .elim-table tr.out{opacity:.55}
+  .elim-table tr.out .st{color:var(--red)}
   .elim-actions{display:flex;gap:10px;flex-wrap:wrap;justify-content:center}
   .elim-actions button{
     padding:12px 22px;border-radius:8px;font-weight:800;letter-spacing:3px;font-size:14px;
@@ -337,6 +355,55 @@
   .elim-actions button.primary:hover{background:#fcc847}
   .elim-actions button.secondary{background:var(--panel-2);color:var(--text)}
   .elim-actions button.secondary:hover{border-color:var(--gold);color:var(--gold)}
+
+  /* === 角色 / 能力觸發卡片（可點擊關閉） === */
+  .talent-trigger-stack{
+    position:fixed;left:50%;bottom:96px;transform:translateX(-50%);
+    display:flex;flex-direction:column;gap:8px;
+    z-index:90;pointer-events:none;
+    width:100%;max-width:420px;padding:0 12px;align-items:stretch
+  }
+  .talent-trigger-card{
+    pointer-events:auto;cursor:pointer;
+    background:linear-gradient(135deg,var(--gold),#fcc847);
+    color:#1a1a1a;border-radius:14px;
+    padding:12px 16px;
+    box-shadow:0 10px 32px rgba(231,181,59,.45),0 6px 16px rgba(0,0,0,.6);
+    animation:ttcIn .3s ease;
+    display:flex;flex-direction:column;gap:6px;
+    user-select:none
+  }
+  .talent-trigger-card.purple{background:linear-gradient(135deg,#7c4dff,#a987ff);color:#fff}
+  .talent-trigger-card.red{background:linear-gradient(135deg,#c93030,#e23b3b);color:#fff}
+  .talent-trigger-card.closing{animation:ttcOut .25s ease forwards}
+  @keyframes ttcIn{from{opacity:0;transform:translateY(20px) scale(.92)}to{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes ttcOut{to{opacity:0;transform:translateY(-12px) scale(.95)}}
+  .ttc-row1{display:flex;align-items:center;gap:10px}
+  .ttc-icon{font-size:24px;line-height:1;flex-shrink:0}
+  .ttc-name{flex:1;font-weight:900;font-size:16px;letter-spacing:2px}
+  .ttc-close{font-size:20px;font-weight:600;opacity:.55;width:24px;height:24px;display:flex;align-items:center;justify-content:center;line-height:1}
+  .talent-trigger-card:hover .ttc-close{opacity:1}
+  .ttc-desc{font-size:12.5px;line-height:1.55;color:rgba(0,0,0,.78)}
+  .talent-trigger-card.purple .ttc-desc,
+  .talent-trigger-card.red .ttc-desc{color:rgba(255,255,255,.88)}
+  .ttc-flow{
+    display:flex;align-items:center;gap:8px;
+    background:rgba(0,0,0,.18);padding:6px 10px;border-radius:8px;
+    font-size:12px;font-weight:700;
+    margin-top:2px
+  }
+  .ttc-flow .who{display:flex;align-items:center;gap:5px;min-width:0;overflow:hidden}
+  .ttc-flow .who .av{font-size:18px;line-height:1;flex-shrink:0}
+  .ttc-flow .who .nm{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .ttc-flow .arrow{opacity:.55;font-weight:900}
+  .ttc-flow .amt{margin-left:auto;background:rgba(0,0,0,.3);padding:3px 10px;border-radius:99px;font-weight:900;font-variant-numeric:tabular-nums;flex-shrink:0}
+  .talent-trigger-card.purple .ttc-flow,
+  .talent-trigger-card.red .ttc-flow{background:rgba(255,255,255,.18)}
+  .talent-trigger-card.purple .ttc-flow .amt,
+  .talent-trigger-card.red .ttc-flow .amt{background:rgba(0,0,0,.35)}
+  .ttc-note{font-size:11px;color:rgba(0,0,0,.6);font-style:italic}
+  .talent-trigger-card.purple .ttc-note,
+  .talent-trigger-card.red .ttc-note{color:rgba(255,255,255,.7)}
 
   /* End screen */
   #end{align-items:center;justify-content:center;background:radial-gradient(ellipse at center,#1a2530 0%,#0a0d10 80%)}
@@ -802,11 +869,25 @@
     .effect-toast .et-amt{font-size:18px}
 
     /* === Elimination modal mobile === */
-    .elim-card{padding:20px 18px}
-    .elim-title{font-size:24px;letter-spacing:5px}
-    .elim-rank{font-size:14px;letter-spacing:2px}
-    .elim-rank strong{font-size:32px}
-    .elim-actions button{padding:11px 16px;font-size:12px;letter-spacing:2px;flex:1;min-width:0}
+    .elim-card{padding:18px 14px}
+    .elim-title{font-size:22px;letter-spacing:4px}
+    .elim-rank{font-size:13px;letter-spacing:2px}
+    .elim-rank strong{font-size:30px}
+    .elim-actions button{padding:11px 12px;font-size:12px;letter-spacing:2px;flex:1;min-width:0}
+    .elim-table thead th{font-size:9px;padding:5px 6px}
+    .elim-table tbody td{padding:7px 6px;font-size:12px}
+    .elim-table .ava{font-size:18px}
+    .elim-table .st{font-size:11px}
+
+    /* === Talent trigger card mobile === */
+    .talent-trigger-stack{bottom:88px;padding:0 10px}
+    .talent-trigger-card{padding:10px 12px}
+    .ttc-icon{font-size:22px}
+    .ttc-name{font-size:14px;letter-spacing:1px}
+    .ttc-desc{font-size:11.5px;line-height:1.5}
+    .ttc-flow{font-size:11px;padding:5px 8px}
+    .ttc-flow .who .av{font-size:16px}
+    .ttc-flow .amt{padding:2px 8px;font-size:11px}
 
     /* === End screen === */
     .end-card{padding:22px 18px;width:100%}
@@ -1070,6 +1151,7 @@ const CHARACTERS = [
   { id:'east_money',  name:'東家錢', icon:'💰', desc:'每局開始時 50% 機率向上一局的贏家抽走 1 個小盲。' },
 ];
 const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map(c=>[c.id,c]));
+const CHAR_BY_NAME = Object.fromEntries(CHARACTERS.map(c=>[c.name,c]));
 const POWER_UPS = [
   { id:'arrogant',    name:'不可一世', icon:'🌟', desc:'用「高牌」贏下比牌時，每位輸家額外付你 1 個大盲。' },
   { id:'p_rule27',    name:'27 法則', icon:'✌️', desc:'底牌剛好 2&7 並贏下牌局時，全場每位對手付你 2 個大盲。' },
@@ -1090,6 +1172,7 @@ const POWER_UPS = [
   { id:'last_straw',  name:'救命稻草', icon:'🌾', desc:'每局結算後若你籌碼是全場最少，下一局的第一個大盲免費。' },
 ];
 const POWER_BY_ID = Object.fromEntries(POWER_UPS.map(p=>[p.id,p]));
+const POWER_BY_NAME = Object.fromEntries(POWER_UPS.map(p=>[p.name,p]));
 const MODES = [
   { id:'classic',    name:'經典傳奇', tag:'最純粹的德州撲克' },
   { id:'less',       name:'以少為多', tag:'拿掉小數字' },
@@ -2147,29 +2230,90 @@ function makeRaiseDraggable(){
 makeRaiseDraggable();
 
 // ============ 我是不是還活著 ============
+// _iAmOut 在 showdown 收到 r.eliminated 時就會立刻設為 true
+// 因為 server 的 alive flag 要等下一手 startHand 才會 flip，
+// 中間那段空窗對手選能力的 banner 才不會閃出來
+let _iAmOut = false;
 function isMeAlive(){
+  if(_iAmOut) return false;
   if(!lastState || !Array.isArray(lastState.players)) return true;
   const me = lastState.players.find(p=> p.id === myId);
-  return !me || me.alive !== false;
+  if(!me) return true;
+  return me.alive !== false;
 }
 
-// 淘汰結算 modal（中途被打掛時跳出）
+// 淘汰結算 modal（中途被打掛時跳出，含完整排名表）
 let _elimModalShown = false;
-function showEliminationModal(rank, handNum){
+
+// 從 lastState + showdown 後的玩家資料 build 排名（活著在前，死的依淘汰時間倒序）
+function buildElimRankings(showdownPlayers){
+  const handNum = lastState?.handNum || 0;
+  const base = (lastState?.players || []);
+  // 用 lastState 為底，merge 進 showdown 給的最新 chips/alive
+  const merged = base.map(p => {
+    const sd = (showdownPlayers || []).find(x => x.id === p.id);
+    if(!sd) return { ...p };
+    const newlyOut = p.alive && !sd.alive;
+    return {
+      ...p,
+      chips: sd.chips,
+      alive: sd.alive,
+      eliminatedAtHand: !sd.alive
+        ? (p.eliminatedAtHand || handNum)
+        : null,
+    };
+  });
+  return merged.sort((a, b) => {
+    if(a.alive && !b.alive) return -1;
+    if(!a.alive && b.alive) return 1;
+    if(a.alive && b.alive) return (b.chips||0) - (a.chips||0);
+    return (b.eliminatedAtHand || 0) - (a.eliminatedAtHand || 0);
+  });
+}
+
+function showEliminationModal(showdownPlayers){
   if(_elimModalShown) return;
   _elimModalShown = true;
-  // 關掉所有對手能力相關 overlay，避免疊一起
+  // 關掉所有對手能力 / 觸發相關 overlay，避免被淘汰後還閃
   closeChoosePowerModal();
   closePickPendingBanner();
   document.querySelectorAll('.power-desc-overlay').forEach(e=> e.remove());
+  document.querySelectorAll('.talent-trigger-card').forEach(e=> e.remove());
+  document.querySelectorAll('.elim-overlay').forEach(e=> e.remove());
+
+  const ranks = buildElimRankings(showdownPlayers);
+  const myRank = ranks.findIndex(r => r.id === myId) + 1 || ranks.length;
+  const myEntry = ranks.find(r => r.id === myId);
+  const handNum = myEntry?.eliminatedAtHand || lastState?.handNum || '?';
+
+  const rows = ranks.map((r, i) => {
+    const isMe = r.id === myId;
+    const ava = r.avatar || (r.isAI ? '🤖' : '🧑');
+    const status = r.alive
+      ? `$${fmt(r.chips||0)}`
+      : `第 ${r.eliminatedAtHand || '?'} 手出局`;
+    return `
+      <tr class="${isMe ? 'me' : ''} ${!r.alive ? 'out' : ''}">
+        <td class="rk">${i+1}</td>
+        <td><div class="who"><span class="ava">${ava}</span><span class="nm">${r.name}${isMe?'（你）':''}</span></div></td>
+        <td class="st">${status}</td>
+      </tr>
+    `;
+  }).join('');
 
   const overlay = document.createElement('div');
   overlay.className = 'elim-overlay';
   overlay.innerHTML = `
     <div class="elim-card">
       <div class="elim-title">你被淘汰</div>
-      <div class="elim-rank">第 <strong>${rank}</strong> 名</div>
-      <div class="elim-info">在第 <strong>${handNum||'?'}</strong> 手出局</div>
+      <div class="elim-rank">第 <strong>${myRank}</strong> 名</div>
+      <div class="elim-info">在第 <strong>${handNum}</strong> 手出局</div>
+      <div class="elim-table-wrap">
+        <table class="elim-table">
+          <thead><tr><th>#</th><th>玩家</th><th>狀態</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </div>
       <div class="elim-actions">
         <button class="secondary" data-act="watch">繼續觀戰</button>
         <button class="primary" data-act="lobby">回大廳</button>
@@ -2187,7 +2331,7 @@ function showEliminationModal(rank, handNum){
   });
 }
 
-// 偵測 alive → eliminated 的瞬間
+// 偵測 alive → eliminated 的瞬間（次要保險：showdown 已經會直接呼叫 modal）
 function checkMyEliminationTransition(prevState, nextState){
   if(!prevState || !nextState) return;
   const prevMe = (prevState.players||[]).find(p=> p.id === myId);
@@ -2196,11 +2340,79 @@ function checkMyEliminationTransition(prevState, nextState){
   const wasAlive = prevMe.alive !== false;
   const nowDead = nextMe.alive === false;
   if(wasAlive && nowDead){
-    // 名次 = 還活著的人數 + 1
-    const aliveCnt = (nextState.players||[]).filter(p=> p.alive !== false).length;
-    const rank = aliveCnt + 1;
-    const handNum = nextMe.eliminatedAtHand || nextState.handNum || '?';
-    showEliminationModal(rank, handNum);
+    _iAmOut = true;
+    showEliminationModal(nextState.players);
+  }
+}
+
+// ============ 角色 / 能力觸發卡片（可點擊關閉、含原因說明） ============
+function getTalentTriggerStack(){
+  let stack = document.getElementById('talentTriggerStack');
+  if(!stack){
+    stack = document.createElement('div');
+    stack.id = 'talentTriggerStack';
+    stack.className = 'talent-trigger-stack';
+    document.body.appendChild(stack);
+  }
+  return stack;
+}
+function showTalentTriggerCard(t, opts){
+  opts = opts || {};
+  const def = CHAR_BY_NAME[t.label] || POWER_BY_NAME[t.label] || null;
+  const desc = def?.desc || '';
+  const fromP = lastState?.players?.find(x => x.id === t.fromId);
+  const toP = lastState?.players?.find(x => x.id === t.toId);
+
+  let flowHtml = '';
+  if(fromP && toP){
+    flowHtml = `
+      <div class="ttc-flow">
+        <div class="who"><span class="av">${fromP.avatar||(fromP.isAI?'🤖':'🧑')}</span><span class="nm">${fromP.name}</span></div>
+        <span class="arrow">→</span>
+        <div class="who"><span class="av">${toP.avatar||(toP.isAI?'🤖':'🧑')}</span><span class="nm">${toP.name}</span></div>
+        <span class="amt">+${fmt(t.amount||0)}</span>
+      </div>`;
+  } else if(toP){
+    flowHtml = `
+      <div class="ttc-flow">
+        <div class="who"><span class="av">${toP.avatar||(toP.isAI?'🤖':'🧑')}</span><span class="nm">${toP.name}</span></div>
+        <span class="amt">+${fmt(t.amount||0)}</span>
+      </div>`;
+  } else if(fromP){
+    flowHtml = `
+      <div class="ttc-flow">
+        <div class="who"><span class="av">${fromP.avatar||(fromP.isAI?'🤖':'🧑')}</span><span class="nm">${fromP.name}</span></div>
+        <span class="amt">−${fmt(t.amount||0)}</span>
+      </div>`;
+  }
+
+  const card = document.createElement('div');
+  card.className = 'talent-trigger-card' + (opts.color ? ' ' + opts.color : '');
+  card.innerHTML = `
+    <div class="ttc-row1">
+      <span class="ttc-icon">${t.icon || '✦'}</span>
+      <span class="ttc-name">${t.label || ''}</span>
+      <span class="ttc-close">×</span>
+    </div>
+    ${desc ? `<div class="ttc-desc">${desc}</div>` : ''}
+    ${flowHtml}
+    ${t.note ? `<div class="ttc-note">${t.note}</div>` : ''}
+  `;
+  const close = ()=>{
+    if(card.classList.contains('closing')) return;
+    card.classList.add('closing');
+    setTimeout(()=> card.remove(), 250);
+  };
+  card.addEventListener('click', close);
+  getTalentTriggerStack().appendChild(card);
+  // 安全網：12 秒後沒被點掉就自動關
+  setTimeout(()=>{
+    if(document.body.contains(card)) close();
+  }, 12000);
+  // 最多保留 4 張，超過把最舊的擠掉
+  const stack = getTalentTriggerStack();
+  while(stack.children.length > 4){
+    stack.firstElementChild.remove();
   }
 }
 
@@ -2353,20 +2565,20 @@ function handleMessage(m){
       }
       break;
     case 'showdown':
+      // 偵測自己被淘汰：立刻設旗標抑制後續對手能力 UI、並排程跳結算 modal
+      if(m.result?.eliminated?.includes(myId)){
+        _iAmOut = true;
+        // 等 showdown 動畫播一下再跳，讓玩家看到自己怎麼死的
+        setTimeout(()=>{
+          showEliminationModal(m.players);
+        }, 3500);
+      }
       handleShowdown(m.result);
       break;
     case 'triggers': {
-      // 即時觸發 toast（raise/call/fold 時觸發的角色）
+      // 即時觸發卡片（raise/call/fold 時觸發的角色），可點擊關閉
       (m.triggers || []).forEach((t, i)=>{
-        setTimeout(()=>{
-          const fromP = lastState?.players?.find(x=> x.id === t.fromId);
-          const toP = lastState?.players?.find(x=> x.id === t.toId);
-          let msg = '';
-          if(fromP && toP) msg = `${fromP.name} → ${toP.name} <span class="et-amt">${fmt(t.amount)}</span>`;
-          else if(toP) msg = `${toP.name} <span class="et-amt">+${fmt(t.amount)}</span>`;
-          else msg = `<span class="et-amt">${fmt(t.amount)}</span>`;
-          showEffectToast((t.icon||'✦') + ' ' + t.label, msg);
-        }, i * 350);
+        setTimeout(()=> showTalentTriggerCard(t), i * 350);
       });
       break;
     }
@@ -2440,17 +2652,10 @@ function handleShowdown(r){
       });
     }
 
-    // 角色 / 能力觸發 toast
+    // 角色 / 能力觸發 → 可點擊關閉的卡片，含說明
     if(r.triggers && r.triggers.length){
       r.triggers.forEach((t, i)=>{
-        setTimeout(()=>{
-          const fromP = lastState?.players?.find(x=> x.id === t.fromId);
-          const toP = lastState?.players?.find(x=> x.id === t.toId);
-          let msg = '';
-          if(fromP && toP) msg = `${fromP.name} → ${toP.name} <span class="et-amt">${fmt(t.amount)}</span>`;
-          else if(toP) msg = `${toP.name} <span class="et-amt">+${fmt(t.amount)}</span>`;
-          showEffectToast((t.icon||'✦') + ' ' + t.label, msg);
-        }, 1200 + i * 380);
+        setTimeout(()=> showTalentTriggerCard(t), 1200 + i * 380);
       });
     }
   }, 200);
