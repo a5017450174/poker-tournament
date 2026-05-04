@@ -119,6 +119,15 @@
     from{transform:translateY(-6px) scale(1.05)}
     to{transform:translateY(-10px) scale(1.10)}
   }
+  /* 手牌跟公牌有牌型關聯：柔和金色光暈（比 matched 弱、比一般強） */
+  .card.connected{
+    box-shadow:0 0 0 2.5px rgba(231,181,59,.8),0 0 18px rgba(231,181,59,.55)!important;
+    z-index:4;animation:connectedBreathe 1.6s ease-in-out infinite alternate;
+  }
+  @keyframes connectedBreathe{
+    from{box-shadow:0 0 0 2.5px rgba(231,181,59,.6),0 0 14px rgba(231,181,59,.4)!important;transform:translateY(-2px)}
+    to  {box-shadow:0 0 0 3.5px rgba(231,181,59,.9),0 0 26px rgba(231,181,59,.7)!important;transform:translateY(-5px) scale(1.03)}
+  }
 
   .seat{position:absolute;display:flex;flex-direction:column;align-items:center;gap:6px;width:140px;transition:opacity .3s}
   .seat .avatar{width:54px;height:54px;border-radius:50%;background:var(--panel);border:2px solid var(--felt-edge);display:flex;align-items:center;justify-content:center;font-size:22px;transition:all .3s}
@@ -160,26 +169,38 @@
 
   /* Action panel */
   .actions{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:10}
-  /* 思考時間光圈：包在 action-row 外面、按時間消逝 */
-  .action-row{position:relative}
+  /* 用 @property 把 --turn-pct 註冊成可被動畫的 number，conic-gradient 才能 smooth 過渡 */
+  @property --turn-pct{syntax:'<number>';inherits:true;initial-value:100}
+  /* 思考時間光圈：包在 action-row 外面、按時間線性消逝 */
+  .action-row{position:relative;--turn-pct:100;--turn-color:var(--gold)}
   .action-row::before{
     content:'';
     position:absolute;
     inset:-4px;
     border-radius:18px;
     padding:4px;
-    background:conic-gradient(from -90deg, var(--gold) 0%, var(--gold) calc(var(--turn-pct,0) * 1%), transparent calc(var(--turn-pct,0) * 1%), transparent 100%);
+    background:conic-gradient(from -90deg, var(--turn-color) 0%, var(--turn-color) calc(var(--turn-pct) * 1%), transparent calc(var(--turn-pct) * 1%), transparent 100%);
     -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
     -webkit-mask-composite:xor;
     mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
     mask-composite:exclude;
-    filter:drop-shadow(0 0 8px var(--gold));
+    filter:drop-shadow(0 0 8px var(--turn-color));
     opacity:0;
-    transition:opacity .25s;
+    transition:opacity .25s,filter .25s;
     pointer-events:none;
     z-index:0;
   }
   .action-row.turn-active::before{opacity:1}
+  .action-row.turn-active.turn-running::before{
+    animation:turnDrain linear forwards;
+    animation-duration:var(--turn-duration,20s);
+  }
+  @keyframes turnDrain{from{--turn-pct:100}to{--turn-pct:0}}
+  .action-row.turn-warn{--turn-color:#ff7b3a}
+  .action-row.turn-warn::before{filter:drop-shadow(0 0 12px #ff7b3a)}
+  .action-row.turn-danger{--turn-color:var(--red)}
+  .action-row.turn-danger::before{filter:drop-shadow(0 0 16px var(--red));animation-name:turnDrain,turnDangerFlash;animation-duration:var(--turn-duration,20s),.35s;animation-iteration-count:1,infinite;animation-direction:normal,alternate;animation-timing-function:linear,ease-in-out}
+  @keyframes turnDangerFlash{to{filter:drop-shadow(0 0 24px var(--red))}}
   .action-row .turn-sec-badge{
     position:absolute;
     top:-14px;
@@ -197,10 +218,6 @@
     z-index:5;
   }
   .action-row.turn-active .turn-sec-badge{display:block}
-  .action-row.turn-warn::before{filter:drop-shadow(0 0 12px #ff7b3a)}
-  .action-row.turn-warn::before{background:conic-gradient(from -90deg, #ff7b3a 0%, #ff7b3a calc(var(--turn-pct,0) * 1%), transparent calc(var(--turn-pct,0) * 1%), transparent 100%)}
-  .action-row.turn-danger::before{background:conic-gradient(from -90deg, var(--red) 0%, var(--red) calc(var(--turn-pct,0) * 1%), transparent calc(var(--turn-pct,0) * 1%), transparent 100%)!important;filter:drop-shadow(0 0 16px var(--red));animation:turnDangerFlash .35s ease-in-out infinite alternate}
-  @keyframes turnDangerFlash{ to{ filter:drop-shadow(0 0 24px var(--red)) } }
   .turn-timer .bar .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .1s linear}
   .turn-timer .bar .fill.warn{background:linear-gradient(90deg,var(--gold),var(--red))}
   .turn-timer .bar .fill.danger{background:var(--red)}
@@ -440,7 +457,11 @@
     border:1.5px solid #fff;font-size:14px;line-height:1;
     width:26px;height:26px;display:flex;align-items:center;justify-content:center;
     border-radius:50%;box-shadow:0 0 10px rgba(124,77,255,.6),0 2px 6px rgba(0,0,0,.5);
+    cursor:pointer;transition:transform .15s,box-shadow .15s;
   }
+  .seat .pwr-chip:hover{transform:scale(1.2);box-shadow:0 0 18px rgba(124,77,255,.9),0 4px 8px rgba(0,0,0,.6)}
+  .seat .talent-chip{cursor:pointer;transition:transform .15s}
+  .seat .talent-chip:hover{transform:scale(1.2)}
 
   /* 大型能力描述彈窗 */
   .power-desc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:170;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:eBigBgIn .3s ease}
@@ -787,6 +808,62 @@ function _bestType(cards){
   }
   return best;
 }
+
+function _cmpScore(a,b){
+  for(let i=0;i<Math.max(a.length,b.length);i++){
+    const x=a[i]||0,y=b[i]||0;
+    if(x!==y) return x-y;
+  }
+  return 0;
+}
+
+// 找出當前最佳 5 張牌組成的 key set（給「手牌+公牌關聯」高亮用）
+// 回傳 {keys: Set, type: number}；type < 1（高牌）回傳空 set，避免每次都亮一張
+function _findConnectedKeys(holeCards, community){
+  if(!holeCards || holeCards.length === 0) return { keys: new Set(), type: -1 };
+  const all = (holeCards || []).concat(community || []);
+  if(all.length < 5) return { keys: new Set(), type: -1 };
+  let best = null;
+  function gen(start, picked){
+    if(picked.length === 5){
+      const sc = _score5(picked);
+      if(!best || _cmpScore(sc, best.score) > 0){
+        best = { score: sc.slice(), cards: picked.slice() };
+      }
+      return;
+    }
+    for(let i=start;i<all.length;i++){
+      if(all.length - i < 5 - picked.length) return;
+      picked.push(all[i]);
+      gen(i+1, picked);
+      picked.pop();
+    }
+  }
+  gen(0, []);
+  if(!best) return { keys: new Set(), type: -1 };
+  const type = best.score[0];
+  const keys = new Set();
+  if(type === 0){
+    return { keys, type };  // 高牌不亮
+  }
+  const counts = {};
+  best.cards.forEach(c=> counts[c.rank] = (counts[c.rank]||0)+1);
+  if(type === 1 || type === 2 || type === 3 || type === 7){
+    // 一對 / 兩對 / 三條 / 鐵支：只亮配對的牌
+    best.cards.forEach(c=>{ if(counts[c.rank] >= 2) keys.add(c.rank+c.suit); });
+  } else {
+    // 順子 / 同花 / 葫蘆 / 同花順 / 皇家：5 張全亮
+    best.cards.forEach(c=> keys.add(c.rank+c.suit));
+  }
+  // 必須要有 hole 跟 community 各一張參與才算「關聯」
+  // 否則對手有對而我沒參與時也亮就怪了
+  const holeKeys = new Set(holeCards.map(c=> c.rank+c.suit));
+  const commKeys = new Set((community||[]).map(c=> c.rank+c.suit));
+  let hasHole = false, hasComm = false;
+  keys.forEach(k=>{ if(holeKeys.has(k)) hasHole = true; if(commKeys.has(k)) hasComm = true; });
+  if(!hasHole || !hasComm) return { keys: new Set(), type };
+  return { keys, type };
+}
 function toast(msg, dur=2000){
   const t = $('#toast');
   t.textContent = msg;
@@ -914,6 +991,8 @@ function showActionPop(seatEl, type, amount){
 
 let pickPendingTimer = null;
 let choosePowerCdTimer = null;
+let myTurnWarnTimer = null;
+let myTurnDangerTimer = null;
 
 function showChoosePowerModal(choices, deadline){
   closeChoosePowerModal();
@@ -989,6 +1068,22 @@ function showPowerAppliedOverlay(playerName, power){
   const close = ()=> overlay.remove();
   overlay.addEventListener('click', close);
   setTimeout(close, 4000);
+}
+
+// 點 chip 顯示能力/角色說明
+function showAbilityDesc(icon, name, desc, ownerName, kind){
+  document.querySelectorAll('.power-desc-overlay').forEach(e=> e.remove());
+  const overlay = document.createElement('div');
+  overlay.className = 'power-desc-overlay';
+  overlay.innerHTML = `<div class="power-desc-card">
+    <div class="pdc-ico">${icon}</div>
+    <div class="pdc-name">${name}</div>
+    <div class="pdc-target"><span style="font-size:13px;color:var(--text-mute);letter-spacing:2px">${kind||''}</span><br>擁有者：<strong>${ownerName}</strong></div>
+    <div class="pdc-desc">${desc}</div>
+    <div class="pdc-tap">點擊任意處關閉</div>
+  </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', ()=> overlay.remove());
 }
 
 function updateModeBanner(mode, level, detail){
@@ -1289,7 +1384,7 @@ function renderTable(state){
     if(playerIdxInState === state.bbPos){
       const b = document.createElement('div'); b.className='badge bb'; b.textContent='BB'; seat.appendChild(b);
     }
-    // 角色 chip
+    // 角色 chip（可點看說明）
     seat.querySelectorAll('.talent-chip').forEach(b=> b.remove());
     if(p.talent){
       const c = CHAR_BY_ID[p.talent];
@@ -1298,10 +1393,14 @@ function renderTable(state){
         chip.className = 'talent-chip' + (p.id===myId?' you':'');
         chip.textContent = c.icon;
         chip.title = `${c.name} — ${c.desc}`;
+        chip.addEventListener('click', e=>{
+          e.stopPropagation();
+          showAbilityDesc(c.icon, c.name, c.desc, p.name, '角色天賦');
+        });
         seat.appendChild(chip);
       }
     }
-    // 能力 chips
+    // 能力 chips（可點看說明）
     seat.querySelectorAll('.powers-row').forEach(b=> b.remove());
     if(p.powerUps && p.powerUps.length){
       const row = document.createElement('div');
@@ -1313,6 +1412,10 @@ function renderTable(state){
         c.className = 'pwr-chip';
         c.textContent = pw.icon;
         c.title = `${pw.name} — ${pw.desc}`;
+        c.addEventListener('click', e=>{
+          e.stopPropagation();
+          showAbilityDesc(pw.icon, pw.name, pw.desc, p.name, '增幅能力');
+        });
         row.appendChild(c);
       });
       seat.appendChild(row);
@@ -1324,7 +1427,40 @@ function renderTable(state){
   // 我的當前牌型（公牌 ≥ 3 才算）
   updateMyHand(state);
 
+  // 手牌+公牌關聯：高亮我自己組成最佳牌型的卡（showdown 時的 matched 高亮優先）
+  applyConnectedHighlight(state);
+
   renderStackRanking(state);
+}
+
+function applyConnectedHighlight(state){
+  // showdown 已經有 showdown-matched 的話不要動
+  if(document.querySelector('.card.showdown-matched')) return;
+  const me = state.players.find(p=> p.id === myId);
+  if(!me || me.folded || !me.alive){ return; }
+  const { keys } = _findConnectedKeys(me.hole || [], state.community || []);
+  if(keys.size === 0) return;
+  // 公牌
+  const commEls = $('#community').children;
+  for(let i=0;i<state.community.length;i++){
+    const c = state.community[i];
+    if(c && keys.has(c.rank+c.suit) && commEls[i]){
+      commEls[i].classList.add('connected');
+    }
+  }
+  // 我的底牌
+  const seats = $$('.seat');
+  const map = mapToSeats(state);
+  for(let i=0;i<6;i++){
+    const p = map[i];
+    if(!p || p.id !== myId || !p.hole) continue;
+    const holeEls = seats[i].querySelector('.hole').children;
+    p.hole.forEach((c, idx)=>{
+      if(c && keys.has(c.rank+c.suit) && holeEls[idx]){
+        holeEls[idx].classList.add('connected');
+      }
+    });
+  }
 }
 
 function updateMyHand(state){
@@ -1438,6 +1574,29 @@ function setMyTurn(t){
   $('#btnRaise').disabled = !myValidActions.includes('raise');
   $('#btnAllIn').disabled = !myValidActions.includes('allin');
 
+  // 啟動光圈動畫：實際剩餘時間，由 CSS keyframe 線性消逝
+  const row = $('#actionRow');
+  if(row){
+    const total = (lobby?.settings?.baseTurnSec || 20) * 1000;
+    const remain = Math.max(0, myTurnDeadline - Date.now());
+    // 從目前剩餘比例開始，動畫到 0；CSS @property 會 smooth interpolate
+    const startPct = Math.min(100, (remain / total) * 100);
+    row.classList.remove('turn-active','turn-warn','turn-danger','turn-running');
+    row.style.setProperty('--turn-pct', startPct);
+    row.style.setProperty('--turn-duration', remain + 'ms');
+    void row.offsetWidth;  // force reflow
+    row.classList.add('turn-active','turn-running');
+    // 後段警告色：用 setTimeout 切換 class
+    if(myTurnWarnTimer){ clearTimeout(myTurnWarnTimer); }
+    if(myTurnDangerTimer){ clearTimeout(myTurnDangerTimer); }
+    const warnAt = remain - total * 0.40;  // 剩 40% 時轉橘
+    const dangerAt = remain - total * 0.15; // 剩 15% 時轉紅
+    if(warnAt > 0) myTurnWarnTimer = setTimeout(()=> row.classList.add('turn-warn'), warnAt);
+    else row.classList.add('turn-warn');
+    if(dangerAt > 0) myTurnDangerTimer = setTimeout(()=>{ row.classList.remove('turn-warn'); row.classList.add('turn-danger'); }, dangerAt);
+    else if(remain > 0){ row.classList.remove('turn-warn'); row.classList.add('turn-danger'); }
+  }
+
   $('#btnCall').innerHTML = myNeed>0
     ? `<span class="lbl-txt">跟注</span><span class="amt">${fmt(myNeed)}</span>`
     : `<span class="lbl-txt">過牌</span>`;
@@ -1453,12 +1612,15 @@ function clearMyTurn(){
   myValidActions = [];
   myTurnDeadline = 0;
   $$('.btns button').forEach(b=> b.disabled = true);
-  // 立刻關掉光圈
+  // 立刻關掉光圈動畫 + 清計時器
   const row = $('#actionRow');
   if(row){
-    row.classList.remove('turn-active','turn-warn','turn-danger');
+    row.classList.remove('turn-active','turn-warn','turn-danger','turn-running');
     row.style.removeProperty('--turn-pct');
+    row.style.removeProperty('--turn-duration');
   }
+  if(myTurnWarnTimer){ clearTimeout(myTurnWarnTimer); myTurnWarnTimer = null; }
+  if(myTurnDangerTimer){ clearTimeout(myTurnDangerTimer); myTurnDangerTimer = null; }
   const badge = $('#turnSecBadge');
   if(badge) badge.textContent = '—';
 }
@@ -1522,26 +1684,19 @@ function sendAction(action){
   clearMyTurn();
 }
 
-// 思考時間：在 action-row 邊上畫光圈 + 右上角 badge 顯示秒數
+// 思考時間：CSS 動畫負責光圈消逝，JS 只更新右上 badge 的秒數
 function startTurnTicker(){
   if(turnTickerId) clearInterval(turnTickerId);
   turnTickerId = setInterval(()=>{
-    const row = $('#actionRow');
     const badge = $('#turnSecBadge');
-    if(!row) return;
+    if(!badge) return;
     if(!myTurnDeadline || myValidActions.length === 0){
-      row.classList.remove('turn-active','turn-warn','turn-danger');
+      badge.textContent = '—';
       return;
     }
-    row.classList.add('turn-active');
     const remain = Math.max(0, myTurnDeadline - Date.now());
-    const total = (lobby?.settings?.baseTurnSec || 20) * 1000;
-    const pct = Math.min(100, (remain/total) * 100);
-    row.style.setProperty('--turn-pct', pct);
-    if(badge) badge.textContent = Math.ceil(remain/1000) + 's';
-    row.classList.toggle('turn-warn', pct < 40 && pct >= 15);
-    row.classList.toggle('turn-danger', pct < 15);
-  }, 80);
+    badge.textContent = Math.ceil(remain/1000) + 's';
+  }, 250);
 }
 startTurnTicker();
 
