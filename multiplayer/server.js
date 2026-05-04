@@ -330,11 +330,14 @@ class Room {
         this._nextHand();   // 會走到 _endTournament
         return;
       }
-      // 階段限制：只有第 2、第 3 階段（盲注等級 2 / 3）打掉人才能挑能力
-      // 第 1 階段：剛開局還在熱身，不挑
-      // 第 4 階段以上：能力已飽和，後期靠累積打的
+      // 階段限制：整場只開放兩次能力選擇
+      // level 1（初始 BB 200）：不挑（熱身）
+      // level 2（BB 400）：挑 ← 第一次
+      // level 3（BB 800）：不挑
+      // level 4（BB 1600）：挑 ← 第二次
+      // level 5+（BB 3200 起）：不挑（後期靠累積實力決勝負）
       const stage = this.game.blindLevel || 1;
-      const inPickStage = (stage === 2 || stage === 3);
+      const inPickStage = (stage === 2 || stage === 4);
       const elimCount = (result.eliminated || []).length;
 
       if(inPickStage && result.killer && elimCount > 0){

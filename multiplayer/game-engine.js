@@ -704,7 +704,7 @@ class Game {
       this.pot += pay;
       if(p.chips === 0) p.allIn = true;
       this.addLog(`${p.name} 跟注 ${pay}`);
-      // 角色：水漲船高（跟注的對手多付 1 SB）
+      // 角色：水漲船高（跟注的對手多付 1 SB；錢進底池，不是直接給加注者）
       if(this._lastRaiserId !== null && this._lastRaiserId !== p.id){
         const raiser = this.players.find(x=> x.id === this._lastRaiserId);
         if(raiser && hasTalent(raiser, 'rising_tide')){
@@ -714,8 +714,9 @@ class Game {
             this.pot += extra;
             this._triggers.push({
               label:'水漲船高', icon:'🌊',
-              fromId:p.id, toId:raiser.id, amount:extra,
-              note:`${p.name} 多付進底池`,
+              fromId:p.id, toId:null, amount:extra,
+              byId: raiser.id, byName: raiser.name,
+              note:`${p.name} 多付進底池（${raiser.name} 觸發）`,
             });
             this.addLog(`✦ 水漲船高：${p.name} 多付 ${extra} 進底池`);
           }

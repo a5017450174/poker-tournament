@@ -1,7 +1,7 @@
 {
   "name": "poker-tournament-multiplayer",
   "version": "1.0.0",
-  "description": "德撲錦標賽多人連線版",
+  "description": "德州撲克之底牌驅逐令 — 多人連線版",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

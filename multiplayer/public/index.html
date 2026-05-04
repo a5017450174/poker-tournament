@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>德撲錦標賽 — 多人連線</title>
+<title>德州撲克之底牌驅逐令</title>
 <style>
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
   :root{
@@ -31,7 +31,7 @@
   #lobby{align-items:center;justify-content:flex-start;background:radial-gradient(ellipse at top,#1a2530 0%,#0a0d10 60%);overflow-y:auto}
   #lobby > .lobby-title{flex-shrink:0}
   #lobby > .lobby-card{flex-shrink:0;margin:auto 0}
-  .lobby-title{font-size:42px;font-weight:800;letter-spacing:4px;margin-bottom:8px;text-align:center}
+  .lobby-title{font-size:38px;font-weight:800;letter-spacing:2px;margin-bottom:8px;text-align:center;line-height:1.2}
   .lobby-title .gold{color:var(--gold)}
   .lobby-sub{color:var(--text-dim);text-align:center;margin-bottom:32px;letter-spacing:2px}
 
@@ -662,7 +662,7 @@
 
     /* === Lobby === */
     #lobby{padding:14px 12px;justify-content:flex-start}
-    .lobby-title{font-size:30px;letter-spacing:3px;margin-top:6px}
+    .lobby-title{font-size:24px;letter-spacing:1px;margin-top:6px}
     .lobby-sub{font-size:11px;letter-spacing:3px;margin-bottom:18px}
     .lobby-card{padding:18px 16px;width:100%;border-radius:10px}
     .room-settings{grid-template-columns:1fr;gap:8px}
@@ -914,7 +914,7 @@
 
 <!-- ============ LOBBY ============ -->
 <div id="lobby" class="screen">
-  <div class="lobby-title">德撲<span class="gold">錦標賽</span></div>
+  <div class="lobby-title">德州撲克之<span class="gold">底牌驅逐令</span></div>
   <div class="lobby-sub">多人連線版 · 經典模式</div>
   <div class="lobby-card">
     <div class="toggle-form">
@@ -2451,9 +2451,13 @@ function showTalentTriggerCard(t, opts){
   const desc = def?.desc || '';
   const fromP = lastState?.players?.find(x => x.id === t.fromId);
   const toP = lastState?.players?.find(x => x.id === t.toId);
+  // 「進底池」的 trigger：toId 是 null（不是給某個玩家，是進池）
+  const goesToPot = (t.toId == null) && (fromP || t.fromId != null);
+  const potBlock = `<div class="who"><span class="av">🪙</span><span class="nm">底池</span></div>`;
 
   let flowHtml = '';
   if(fromP && toP){
+    // 玩家對玩家
     flowHtml = `
       <div class="ttc-flow">
         <div class="who"><span class="av">${fromP.avatar||(fromP.isAI?'🤖':'🧑')}</span><span class="nm">${fromP.name}</span></div>
@@ -2462,12 +2466,23 @@ function showTalentTriggerCard(t, opts){
         <span class="amt">+${fmt(t.amount||0)}</span>
       </div>`;
   } else if(toP){
+    // 系統給玩家（退錢 / 補償）
     flowHtml = `
       <div class="ttc-flow">
         <div class="who"><span class="av">${toP.avatar||(toP.isAI?'🤖':'🧑')}</span><span class="nm">${toP.name}</span></div>
         <span class="amt">+${fmt(t.amount||0)}</span>
       </div>`;
+  } else if(fromP && goesToPot){
+    // 玩家付到底池（水漲船高 / 沉沒成本）— 不是給某個對手！
+    flowHtml = `
+      <div class="ttc-flow">
+        <div class="who"><span class="av">${fromP.avatar||(fromP.isAI?'🤖':'🧑')}</span><span class="nm">${fromP.name}</span></div>
+        <span class="arrow">→</span>
+        ${potBlock}
+        <span class="amt">+${fmt(t.amount||0)}</span>
+      </div>`;
   } else if(fromP){
+    // 玩家自己扣錢（罰款之類）
     flowHtml = `
       <div class="ttc-flow">
         <div class="who"><span class="av">${fromP.avatar||(fromP.isAI?'🤖':'🧑')}</span><span class="nm">${fromP.name}</span></div>
