@@ -13,7 +13,8 @@
     --gold:#e7b53b; --gold-2:#c69a2a;
     --red:#e23b3b; --green:#3bd47a; --blue:#4a9eff;
   }
-  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",PingFang TC,Helvetica,Arial,sans-serif;overflow:hidden}
+  html,body{height:100%;background:var(--bg);color:var(--text);font-family:-apple-system,"Segoe UI",PingFang TC,Helvetica,Arial,sans-serif}
+  body{overflow:hidden}
   button{font-family:inherit;cursor:pointer;border:none;background:none;color:inherit}
   button:disabled{cursor:not-allowed;opacity:.4}
   input{font-family:inherit;background:var(--panel);border:1px solid var(--felt-edge);color:var(--text);padding:8px 12px;border-radius:6px;font-size:14px}
@@ -27,7 +28,9 @@
   .conn-state.bad{color:var(--red)}
 
   /* ===== Lobby ===== */
-  #lobby{align-items:center;justify-content:center;background:radial-gradient(ellipse at top,#1a2530 0%,#0a0d10 60%)}
+  #lobby{align-items:center;justify-content:flex-start;background:radial-gradient(ellipse at top,#1a2530 0%,#0a0d10 60%);overflow-y:auto}
+  #lobby > .lobby-title{flex-shrink:0}
+  #lobby > .lobby-card{flex-shrink:0;margin:auto 0}
   .lobby-title{font-size:42px;font-weight:800;letter-spacing:4px;margin-bottom:8px;text-align:center}
   .lobby-title .gold{color:var(--gold)}
   .lobby-sub{color:var(--text-dim);text-align:center;margin-bottom:32px;letter-spacing:2px}
@@ -52,8 +55,8 @@
   .room-settings .form-row{margin-bottom:0}
 
   /* ===== Waiting Room ===== */
-  #wait{align-items:center;justify-content:center;background:radial-gradient(ellipse at top,#1a2530 0%,#0a0d10 60%)}
-  .wait-card{background:var(--panel);border:2px solid var(--gold);border-radius:14px;padding:32px 48px;text-align:center;width:min(580px,100%)}
+  #wait{align-items:center;justify-content:flex-start;background:radial-gradient(ellipse at top,#1a2530 0%,#0a0d10 60%);overflow-y:auto;padding-top:24px;padding-bottom:24px}
+  .wait-card{background:var(--panel);border:2px solid var(--gold);border-radius:14px;padding:24px 36px;text-align:center;width:min(640px,100%);margin:auto 0;flex-shrink:0}
   .wait-code{font-size:48px;font-weight:900;color:var(--gold);letter-spacing:12px;background:rgba(0,0,0,.5);padding:16px 28px;border-radius:10px;margin:14px 0;font-family:Menlo,Consolas,monospace}
   .wait-hint{color:var(--text-dim);font-size:13px;letter-spacing:2px;margin-bottom:18px}
   .wait-players{margin:18px 0;display:flex;flex-direction:column;gap:6px}
@@ -151,10 +154,11 @@
   .seat[data-pos="3"] .hole{order:0}
 
   /* Action panel */
-  .actions{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:stretch;gap:8px;z-index:10}
-  .turn-timer{display:flex;align-items:center;gap:10px;background:rgba(20,26,32,.94);border:1px solid var(--felt-edge);padding:7px 16px;border-radius:10px;backdrop-filter:blur(6px);width:100%}
-  .turn-timer .lbl{font-size:11px;color:var(--text-mute);letter-spacing:2px;flex-shrink:0}
-  .turn-timer .bar{flex:1;height:8px;background:var(--felt-edge);border-radius:99px;overflow:hidden}
+  .actions{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:10}
+  .turn-timer{display:flex;align-items:center;gap:8px;background:rgba(20,26,32,.94);border:1px solid var(--felt-edge);padding:5px 12px;border-radius:99px;backdrop-filter:blur(6px);width:280px}
+  .turn-timer.hidden{display:none}
+  .turn-timer .lbl{font-size:10px;color:var(--text-mute);letter-spacing:2px;flex-shrink:0}
+  .turn-timer .bar{flex:1;height:6px;background:var(--felt-edge);border-radius:99px;overflow:hidden}
   .turn-timer .bar .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .1s linear}
   .turn-timer .bar .fill.warn{background:linear-gradient(90deg,var(--gold),var(--red))}
   .turn-timer .bar .fill.danger{background:var(--red)}
@@ -562,8 +566,8 @@
     </div>
 
     <div class="actions">
-      <div class="turn-timer">
-        <span class="lbl">思考時間</span>
+      <div class="turn-timer hidden">
+        <span class="lbl">你的回合</span>
         <div class="bar"><div class="fill" id="turnFill" style="width:100%"></div></div>
         <span class="sec" id="turnSec">—</span>
       </div>
@@ -1041,17 +1045,23 @@ function renderModeGrid(){
     }
     grid.appendChild(el);
   });
+  // 經典模式不分 level
   lvr.innerHTML = '';
-  for(let l=1;l<=3;l++){
-    const b = document.createElement('button');
-    b.textContent = `LV ${l}`;
-    if(l===curLv) b.classList.add('active');
-    if(isHost){
-      b.addEventListener('click', ()=>{
-        sendWS({ type:'update-settings', settings:{ level: l } });
-      });
+  if(curMode === 'classic'){
+    lvr.style.display = 'none';
+  } else {
+    lvr.style.display = '';
+    for(let l=1;l<=3;l++){
+      const b = document.createElement('button');
+      b.textContent = `LV ${l}`;
+      if(l===curLv) b.classList.add('active');
+      if(isHost){
+        b.addEventListener('click', ()=>{
+          sendWS({ type:'update-settings', settings:{ level: l } });
+        });
+      }
+      lvr.appendChild(b);
     }
-    lvr.appendChild(b);
   }
   // detail
   tip.textContent = lobby.modeDetail || '';
@@ -1417,17 +1427,19 @@ function sendAction(action){
   clearMyTurn();
 }
 
-// 思考時間倒數渲染
+// 思考時間倒數渲染（只有輪到自己時才顯示）
 function startTurnTicker(){
   if(turnTickerId) clearInterval(turnTickerId);
   turnTickerId = setInterval(()=>{
+    const timer = document.querySelector('.turn-timer');
+    if(!timer) return;
     if(!myTurnDeadline){
-      $('#turnFill').style.width = '100%';
-      $('#turnSec').textContent = '—';
+      timer.classList.add('hidden');
       return;
     }
+    timer.classList.remove('hidden');
     const remain = Math.max(0, myTurnDeadline - Date.now());
-    const total = lastState?.players?.length ? (lobby?.settings?.baseTurnSec || 20) * 1000 : 20000;
+    const total = (lobby?.settings?.baseTurnSec || 20) * 1000;
     const pct = Math.min(100, (remain/total) * 100);
     const fill = $('#turnFill');
     fill.style.width = pct + '%';
@@ -1437,6 +1449,57 @@ function startTurnTicker(){
   }, 100);
 }
 startTurnTicker();
+
+// 加注 floating 拖曳
+function makeRaiseDraggable(){
+  const el = $('#raiseFloat');
+  const handle = el?.querySelector('.raise-handle');
+  if(!el || !handle) return;
+  let dragging = false, sx, sy, sl, st;
+  const onDown = e => {
+    dragging = true;
+    const ev = e.touches ? e.touches[0] : e;
+    sx = ev.clientX; sy = ev.clientY;
+    const rect = el.getBoundingClientRect();
+    sl = rect.left; st = rect.top;
+    el.style.left = sl+'px'; el.style.top = st+'px';
+    el.style.right = 'auto'; el.style.bottom = 'auto';
+    el.style.transform = 'none';
+    document.body.style.cursor = 'grabbing';
+    e.preventDefault();
+  };
+  const onMove = e => {
+    if(!dragging) return;
+    const ev = e.touches ? e.touches[0] : e;
+    const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    let nl = sl + dx, nt = st + dy;
+    nl = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, nl));
+    nt = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, nt));
+    el.style.left = nl+'px'; el.style.top = nt+'px';
+  };
+  const onUp = () => {
+    if(!dragging) return;
+    dragging = false;
+    document.body.style.cursor = '';
+    try{
+      localStorage.setItem('raiseFloatPos', JSON.stringify({left:el.style.left, top:el.style.top}));
+    }catch(e){}
+  };
+  handle.addEventListener('mousedown', onDown);
+  handle.addEventListener('touchstart', onDown, {passive:false});
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+  try{
+    const saved = JSON.parse(localStorage.getItem('raiseFloatPos')||'null');
+    if(saved && saved.left && saved.top){
+      el.style.left = saved.left; el.style.top = saved.top;
+      el.style.right = 'auto'; el.style.bottom = 'auto'; el.style.transform = 'none';
+    }
+  }catch(e){}
+}
+makeRaiseDraggable();
 
 // ============ End screen ============
 function showEnd(rankings){
@@ -1570,7 +1633,12 @@ function handleMessage(m){
       break;
     }
     case 'street':
-      // 新公牌 — game-state 也會更新
+      // 即時把公牌畫上去（all-in 級聯時 game-state 不會發，client 要自己更新）
+      if(lastState && Array.isArray(m.community)){
+        lastState.community = m.community;
+        lastState.street = m.street;
+        renderTable(lastState);
+      }
       break;
     case 'showdown':
       handleShowdown(m.result);
