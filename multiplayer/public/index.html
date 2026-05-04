@@ -33,7 +33,7 @@
   #lobby > .lobby-card{flex-shrink:0;margin:auto 0}
   .lobby-title{font-size:38px;font-weight:800;letter-spacing:2px;margin-bottom:8px;text-align:center;line-height:1.2}
   .lobby-title .gold{color:var(--gold)}
-  .lobby-sub{color:var(--text-dim);text-align:center;margin-bottom:32px;letter-spacing:2px}
+  .lobby-sub{color:var(--gold);text-align:center;margin-bottom:18px;letter-spacing:3px;font-weight:700;font-size:15px;text-shadow:0 0 18px rgba(231,181,59,.4)}
 
   .lobby-card{background:var(--panel);border:1px solid var(--felt-edge);border-radius:12px;padding:32px 40px;width:min(520px,100%);box-shadow:0 8px 32px rgba(0,0,0,.5)}
 
@@ -108,10 +108,11 @@
   .copy-btn{padding:6px 12px;background:var(--panel-2);border:1px solid var(--felt-edge);color:var(--text);border-radius:5px;font-size:12px;letter-spacing:1px;margin-left:8px}
   .copy-btn:hover{border-color:var(--gold);color:var(--gold)}
 
-  /* ===== 遊戲規則簡介（等待室） ===== */
+  /* ===== 遊戲規則簡介（大廳 + 等待室共用） ===== */
   .rules-box{
-    margin:14px 0 4px;background:rgba(231,181,59,.06);border:1px solid var(--felt-edge);
-    border-radius:10px;overflow:hidden
+    margin:6px 0 14px;background:rgba(231,181,59,.06);border:1px solid var(--felt-edge);
+    border-radius:10px;overflow:hidden;
+    width:min(520px,100%);align-self:center;flex-shrink:0
   }
   .rules-box summary{
     cursor:pointer;padding:10px 14px;font-size:13px;font-weight:700;letter-spacing:2px;
@@ -944,7 +945,49 @@
 <!-- ============ LOBBY ============ -->
 <div id="lobby" class="screen">
   <div class="lobby-title">德州撲克之<span class="gold">底牌驅逐令</span></div>
-  <div class="lobby-sub">多人連線版 · 經典模式</div>
+  <div class="lobby-sub">用你的底牌，把別人通通趕出牌桌</div>
+
+  <details class="rules-box" id="lobbyRulesBox">
+    <summary>📜 遊戲規則簡介（點開）</summary>
+    <div class="rules-body">
+      <div class="rule-item">
+        <div class="rule-icon">🎯</div>
+        <div class="rule-text">
+          <strong>標準德州撲克 + 角色 / 能力系統</strong>
+          <span>每場一個「角色天賦」（整局生效），過程中再拿「能力」加強自己。</span>
+        </div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">⚔️</div>
+        <div class="rule-text">
+          <strong>KO 對手 = 獲得能力</strong>
+          <span>用比牌打掉一個對手 → 你抽 3 選 1 個能力。同手 KO 兩個就抽兩次、三個就三次。<em>例：第一手大家都 all-in、你最大 → 一次幹掉 3 個對手 → 連抽 3 個能力。</em></span>
+        </div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">📈</div>
+        <div class="rule-text">
+          <strong>升盲階段獎勵</strong>
+          <span>第一次升盲（BB 400）＆ 第三次升盲（BB 1600）時，<em>所有活著的玩家</em>都會輪流抽 3 選 1。沒選 30 秒系統幫你隨機。</span>
+        </div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">🎲</div>
+        <div class="rule-text">
+          <strong>能力範例</strong>
+          <span>「不可一世」用高牌贏比牌 → 每位輸家加付你 1 BB。「連勝加成」連贏 3 場後每場再賺 1 SB。「邊池小偷」贏邊池 → 多偷 20% 籌碼。</span>
+        </div>
+      </div>
+      <div class="rule-item">
+        <div class="rule-icon">🏁</div>
+        <div class="rule-text">
+          <strong>勝利條件</strong>
+          <span>把對手全部打到 0 籌碼為止。最後留在桌上的就是冠軍。</span>
+        </div>
+      </div>
+    </div>
+  </details>
+
   <div class="lobby-card">
     <div class="toggle-form">
       <button id="modeCreate" class="active">建立房間</button>
@@ -1008,47 +1051,6 @@
     <button class="copy-btn" id="copyCodeBtn">複製邀請連結</button>
     <div class="wait-hint">告訴朋友這 5 個字，他們點「加入房間」輸入就能進來</div>
     <div class="wait-players" id="waitPlayers"></div>
-
-    <details class="rules-box" id="rulesBox">
-      <summary>📜 遊戲規則簡介（點開）</summary>
-      <div class="rules-body">
-        <div class="rule-item">
-          <div class="rule-icon">🎯</div>
-          <div class="rule-text">
-            <strong>標準德州撲克 + 角色 / 能力系統</strong>
-            <span>每局每位玩家有「角色天賦」（一場一個，效果整局生效）跟「能力」（會在過程中拿到）。</span>
-          </div>
-        </div>
-        <div class="rule-item">
-          <div class="rule-icon">⚔️</div>
-          <div class="rule-text">
-            <strong>KO 對手 = 獲得能力</strong>
-            <span>用比牌打掉一個對手 → 你抽 3 選 1 個能力。同手 KO 兩個就抽兩次、三個就三次。<em>例：第一手大家都 all-in、你最大 → 一次幹掉 3 個對手 → 連抽 3 個能力。</em></span>
-          </div>
-        </div>
-        <div class="rule-item">
-          <div class="rule-icon">📈</div>
-          <div class="rule-text">
-            <strong>升盲階段獎勵</strong>
-            <span>第一次升盲（BB 400）＆ 第三次升盲（BB 1600）時，<em>所有活著的玩家</em>都會輪流抽 3 選 1 個能力。沒選的話 30 秒後系統隨機。</span>
-          </div>
-        </div>
-        <div class="rule-item">
-          <div class="rule-icon">🎲</div>
-          <div class="rule-text">
-            <strong>能力範例</strong>
-            <span>「不可一世」用高牌贏比牌 → 每位輸家加付你 1 BB。「連勝加成」連贏 3 場後每場再賺 1 SB。「邊池小偷」贏邊池 → 多偷 20% 籌碼。</span>
-          </div>
-        </div>
-        <div class="rule-item">
-          <div class="rule-icon">🏁</div>
-          <div class="rule-text">
-            <strong>勝利條件</strong>
-            <span>把對手全部打到 0 籌碼為止。最後留在桌上的就是冠軍。</span>
-          </div>
-        </div>
-      </div>
-    </details>
 
     <div class="mode-section" id="modeSection">
       <div class="lbl-h">— 變體玩法（房主決定）—</div>
