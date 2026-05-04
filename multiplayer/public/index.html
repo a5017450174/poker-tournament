@@ -516,6 +516,234 @@
     35%{transform:scale(1.2) rotate(-2deg)} 55%{transform:scale(1.3) rotate(2deg)}
     100%{transform:scale(1)}
   }
+
+  /* 桌面版預設隱藏手機元件 */
+  .mobile-toolbar,.drawer-backdrop,.drawer-close{display:none}
+
+  /* ============ 手機版 RWD ============ */
+  @media (max-width: 768px){
+    /* === 全域 === */
+    .screen{padding:10px}
+
+    /* === Lobby === */
+    #lobby{padding:14px 12px;justify-content:flex-start}
+    .lobby-title{font-size:30px;letter-spacing:3px;margin-top:6px}
+    .lobby-sub{font-size:11px;letter-spacing:3px;margin-bottom:18px}
+    .lobby-card{padding:18px 16px;width:100%;border-radius:10px}
+    .room-settings{grid-template-columns:1fr;gap:8px}
+    .lobby-actions button{padding:14px;font-size:14px}
+    .toggle-form button{flex:1;padding:10px 12px;font-size:13px}
+
+    /* Lobby 角色 / 變體 grid 改 3 / 2 欄 */
+    .char-grid{grid-template-columns:repeat(3,1fr);max-height:none;gap:5px}
+    .char-card{padding:6px 2px}
+    .char-card .ico{font-size:22px}
+    .char-card .nm{font-size:10px;letter-spacing:0}
+    .mode-grid{grid-template-columns:repeat(2,1fr)}
+
+    /* === Wait Room === */
+    #wait{padding:14px 10px}
+    .wait-card{padding:16px 12px;width:100%;border-radius:10px}
+    .wait-code{font-size:30px;letter-spacing:8px;padding:10px 14px;margin:10px 0}
+    .wait-hint{font-size:11px;letter-spacing:1px;margin-bottom:12px}
+    .wait-actions button{padding:12px;font-size:13px;letter-spacing:2px}
+    .wait-player{font-size:13px}
+
+    /* === Game：直式排版 === */
+    #game{flex-direction:column}
+    .topbar{padding:6px 8px;gap:10px;flex-wrap:wrap}
+    .topbar .info-block .lbl{font-size:9px;letter-spacing:0}
+    .topbar .info-block .val{font-size:12px}
+    .topbar .timer{font-size:14px}
+    .topbar button.icon{padding:4px 10px;font-size:11px}
+    .mode-banner{padding:5px 10px;font-size:11px;gap:8px}
+    .mode-banner .nm{font-size:12px;letter-spacing:1px}
+    .mode-banner .lv{font-size:10px;padding:1px 5px}
+    .mode-banner .ds{font-size:10px}
+
+    /* 牌桌：直式橢圓 */
+    .table-wrap{padding:14px 4px 92px;align-items:flex-start}
+    .felt{
+      width:96%;aspect-ratio:0.7/1;
+      max-height:calc(100dvh - 220px);
+      border-width:5px;
+    }
+    .center{width:92%;gap:8px}
+    .pot .lbl{font-size:9px}
+    .pot .val{font-size:18px}
+
+    /* 公牌縮小到 5 張可塞滿寬度 */
+    .community{gap:4px;min-height:64px}
+    .card{width:44px;height:62px;border-radius:5px}
+    .card .r{font-size:16px}
+    .card .s{font-size:16px;margin-top:0}
+    .card.small{width:32px;height:46px}
+    .card.small .r,.card.small .s{font-size:13px}
+
+    /* 座位縮小（對手） */
+    .seat{width:88px;gap:3px}
+    .seat .avatar{width:42px;height:42px;font-size:18px}
+    .seat .name-plate{padding:2px 6px;min-width:0;border-radius:5px}
+    .seat .name{font-size:10px;letter-spacing:0}
+    .seat .chips{font-size:11px}
+    .seat .hole{min-height:48px;gap:2px}
+    .seat .bet{font-size:10px;padding:2px 6px}
+    .seat .badge{font-size:9px;padding:1px 5px}
+    .seat .status{font-size:10px;min-height:12px}
+    .seat .talent-chip{width:20px;height:20px;font-size:11px;top:-4px;right:-4px;padding:0;display:flex;align-items:center;justify-content:center}
+
+    /* 你自己（pos=0）放大 + 卡牌大一點 */
+    .seat[data-pos="0"]{bottom:-2%;width:auto}
+    .seat[data-pos="0"] .avatar{width:50px;height:50px}
+    .seat[data-pos="0"] .name-plate{padding:3px 10px}
+    .seat[data-pos="0"] .name{font-size:11px}
+    .seat[data-pos="0"] .chips{font-size:13px}
+    .seat[data-pos="0"] .hole{min-height:80px;gap:6px}
+    .seat[data-pos="0"] .hole .card.small{width:54px;height:76px;border-radius:7px}
+    .seat[data-pos="0"] .hole .card.small .r,
+    .seat[data-pos="0"] .hole .card.small .s{font-size:20px}
+
+    /* 直式座位重排：把兩側往內縮一些避免溢出 */
+    .seat[data-pos="1"]{bottom:24%;left:-6%}
+    .seat[data-pos="2"]{top:8%;left:-6%}
+    .seat[data-pos="3"]{top:-3%}
+    .seat[data-pos="4"]{top:8%;right:-6%}
+    .seat[data-pos="5"]{bottom:24%;right:-6%}
+
+    /* 能力 chip 直立堆疊縮窄距 */
+    .seat[data-pos="0"] .powers-row,
+    .seat[data-pos="1"] .powers-row,
+    .seat[data-pos="2"] .powers-row{right:-26px}
+    .seat[data-pos="3"] .powers-row,
+    .seat[data-pos="4"] .powers-row,
+    .seat[data-pos="5"] .powers-row{left:-26px}
+    .seat .pwr-chip{width:22px;height:22px;font-size:12px}
+
+    /* === 動作列：底部 sticky 全寬 === */
+    .actions{
+      left:0;right:0;bottom:0;top:auto;
+      transform:none;width:100%;padding:6px 6px calc(6px + env(safe-area-inset-bottom));
+      background:rgba(20,26,32,.96);backdrop-filter:blur(8px);
+      border-top:1px solid var(--felt-edge);align-items:stretch
+    }
+    .action-row{
+      width:100%;gap:4px;padding:4px;border-radius:8px;
+      background:transparent;border:none;box-shadow:none
+    }
+    .btns{width:100%;gap:5px}
+    .btns button{
+      flex:1;min-width:0;padding:11px 2px;font-size:11px;letter-spacing:1px;
+      border-radius:7px;line-height:1.1
+    }
+    .btns button .amt{font-size:13px}
+    .action-row .turn-sec-badge{top:-12px;right:4px;font-size:11px;padding:2px 8px}
+
+    /* === 加注 floating 縮小放右下角 === */
+    .raise-float{
+      right:6px;left:auto;top:auto;bottom:78px;transform:none;
+      width:84px;padding:0 6px 6px;border-radius:10px;gap:4px
+    }
+    .raise-handle{font-size:9px;letter-spacing:2px;padding:5px 0 4px}
+    .raise-val{font-size:14px;padding:4px 6px;min-width:64px}
+    .vrange-wrap{width:32px;height:96px}
+    .vrange-track{width:10px}
+    .vrange-thumb{width:28px;height:14px}
+    .raise-float input[type=range]{width:32px;height:96px}
+    .raise-float .quick button{padding:3px 0;font-size:9px}
+
+    /* === Sidebar 變抽屜 === */
+    .sidebar{display:contents}
+    .sidebar-section.drawer{
+      position:fixed;left:0;top:0;
+      width:min(86vw,340px);height:100dvh;
+      background:var(--panel);border-right:1px solid var(--felt-edge);
+      z-index:60;
+      transform:translateX(-100%);transition:transform .28s ease;
+      overflow-y:auto;
+      padding:14px 10px 24px;
+      box-shadow:4px 0 24px rgba(0,0,0,.5);
+      display:flex;flex-direction:column
+    }
+    .sidebar-section.drawer.open{transform:translateX(0)}
+    .drawer-close{
+      display:flex;position:absolute;top:8px;right:8px;
+      width:34px;height:34px;border-radius:50%;
+      background:var(--panel-2);border:1px solid var(--felt-edge);
+      color:var(--text-dim);font-size:22px;line-height:1;
+      align-items:center;justify-content:center;z-index:2
+    }
+    .drawer-close:active{background:var(--felt-edge)}
+    .sidebar-section.drawer h4{padding-right:40px}
+
+    /* 我的牌型在抽屜內保持原樣 */
+    .my-hand-block{margin-bottom:8px;padding:10px 14px}
+    .my-hand-block .val{font-size:18px}
+
+    /* === 浮動工具列 === */
+    .mobile-toolbar{
+      display:flex;flex-direction:column;gap:8px;
+      position:fixed;left:8px;bottom:84px;z-index:45
+    }
+    .mt-btn{
+      width:46px;height:46px;border-radius:50%;
+      background:rgba(20,26,32,.85);backdrop-filter:blur(10px);
+      border:1px solid rgba(231,181,59,.35);
+      font-size:22px;color:var(--gold);
+      box-shadow:0 4px 14px rgba(0,0,0,.6),0 0 12px rgba(231,181,59,.15);
+      display:flex;align-items:center;justify-content:center;
+      transition:transform .15s,background .15s
+    }
+    .mt-btn:active{transform:scale(.9);background:rgba(231,181,59,.25)}
+
+    .drawer-backdrop{
+      display:block;position:fixed;inset:0;
+      background:rgba(0,0,0,.55);
+      z-index:55;opacity:0;pointer-events:none;
+      transition:opacity .25s
+    }
+    .drawer-backdrop.open{opacity:1;pointer-events:auto}
+
+    /* === Power-pick modal 縮一欄 === */
+    .power-pick-card{padding:18px 14px;width:100%;border-radius:14px}
+    .power-pick-grid{grid-template-columns:1fr;gap:8px}
+    .power-card{padding:12px 14px;display:flex;align-items:center;gap:12px;text-align:left}
+    .power-card .pc-ico{margin-bottom:0;font-size:32px;flex-shrink:0}
+    .power-card .pc-name{font-size:15px;letter-spacing:2px;margin-bottom:2px}
+    .power-card .pc-desc{font-size:12px;line-height:1.4}
+    .pp-title{font-size:18px;letter-spacing:3px}
+
+    /* === 勝利 / 升盲 / 比牌大字縮小 === */
+    .big-card{padding:18px 28px}
+    .big-title{font-size:32px;letter-spacing:6px}
+    .big-desc{font-size:14px;letter-spacing:2px}
+    .blind-up-card{padding:18px 30px}
+    .bu-level{font-size:36px;letter-spacing:6px}
+    .bu-blinds{font-size:28px;letter-spacing:2px}
+    .bu-stack{font-size:13px;letter-spacing:2px}
+    .bu-stack strong{font-size:18px}
+    .showdown-handname{font-size:42px;letter-spacing:6px;padding:14px 28px;top:24%}
+    .rank-up-toast{font-size:32px;letter-spacing:4px}
+    .effect-toast{font-size:14px;padding:10px 16px;letter-spacing:1px}
+    .effect-toast .et-name{font-size:11px;padding:3px 10px;letter-spacing:2px}
+    .effect-toast .et-amt{font-size:18px}
+
+    /* === End screen === */
+    .end-card{padding:22px 18px;width:100%}
+    .end-card h2{font-size:22px}
+    .ranking-table th,.ranking-table td{padding:6px 8px;font-size:12px}
+
+    /* iOS Safari address bar */
+    html,body{height:100dvh}
+  }
+
+  /* === 超窄螢幕 (< 360px) === */
+  @media (max-width: 360px){
+    .btns button{padding:10px 1px;font-size:10px;letter-spacing:0}
+    .seat{width:78px}
+    .seat .avatar{width:38px;height:38px;font-size:16px}
+    .card{width:38px;height:54px}
+    .card .r,.card .s{font-size:14px}
+  }
 </style>
 </head>
 <body>
@@ -678,30 +906,43 @@
   </div>
 
   <div class="sidebar">
-    <div class="my-hand-block" id="myHandBlock" style="display:none">
-      <div class="lbl">你目前的牌型</div>
-      <div class="val" id="myHandVal">—</div>
+    <div class="sidebar-section drawer" data-section="handTypes">
+      <button class="drawer-close" data-close="handTypes" aria-label="關閉">×</button>
+      <div class="my-hand-block" id="myHandBlock" style="display:none">
+        <div class="lbl">你目前的牌型</div>
+        <div class="val" id="myHandVal">—</div>
+      </div>
+      <h4>牌型大小（從強到弱）</h4>
+      <div class="panel-block">
+        <ul class="hand-types-list" id="handTypesList">
+          <li data-rank="9"><span class="hr-num">1</span><span class="hr-name">皇家同花順</span></li>
+          <li data-rank="8"><span class="hr-num">2</span><span class="hr-name">同花順</span></li>
+          <li data-rank="7"><span class="hr-num">3</span><span class="hr-name">鐵支</span></li>
+          <li data-rank="6"><span class="hr-num">4</span><span class="hr-name">葫蘆</span></li>
+          <li data-rank="5"><span class="hr-num">5</span><span class="hr-name">同花</span></li>
+          <li data-rank="4"><span class="hr-num">6</span><span class="hr-name">順子</span></li>
+          <li data-rank="3"><span class="hr-num">7</span><span class="hr-name">三條</span></li>
+          <li data-rank="2"><span class="hr-num">8</span><span class="hr-name">兩對</span></li>
+          <li data-rank="1"><span class="hr-num">9</span><span class="hr-name">一對</span></li>
+          <li data-rank="0"><span class="hr-num">10</span><span class="hr-name">高牌</span></li>
+        </ul>
+      </div>
     </div>
-    <h4>牌型大小（從強到弱）</h4>
-    <div class="panel-block">
-      <ul class="hand-types-list" id="handTypesList">
-        <li data-rank="9"><span class="hr-num">1</span><span class="hr-name">皇家同花順</span></li>
-        <li data-rank="8"><span class="hr-num">2</span><span class="hr-name">同花順</span></li>
-        <li data-rank="7"><span class="hr-num">3</span><span class="hr-name">鐵支</span></li>
-        <li data-rank="6"><span class="hr-num">4</span><span class="hr-name">葫蘆</span></li>
-        <li data-rank="5"><span class="hr-num">5</span><span class="hr-name">同花</span></li>
-        <li data-rank="4"><span class="hr-num">6</span><span class="hr-name">順子</span></li>
-        <li data-rank="3"><span class="hr-num">7</span><span class="hr-name">三條</span></li>
-        <li data-rank="2"><span class="hr-num">8</span><span class="hr-name">兩對</span></li>
-        <li data-rank="1"><span class="hr-num">9</span><span class="hr-name">一對</span></li>
-        <li data-rank="0"><span class="hr-num">10</span><span class="hr-name">高牌</span></li>
-      </ul>
-    </div>
-    <h4>籌碼排行</h4>
-    <div class="panel-block">
-      <div class="stack-ranking" id="stackRanking"></div>
+    <div class="sidebar-section drawer" data-section="ranking">
+      <button class="drawer-close" data-close="ranking" aria-label="關閉">×</button>
+      <h4>籌碼排行</h4>
+      <div class="panel-block">
+        <div class="stack-ranking" id="stackRanking"></div>
+      </div>
     </div>
   </div>
+
+  <!-- Mobile only: floating toolbar + drawer backdrop -->
+  <div class="mobile-toolbar" id="mobileToolbar">
+    <button class="mt-btn" id="mtHandTypes" title="牌型大小">📜</button>
+    <button class="mt-btn" id="mtRanking" title="籌碼排行">🏆</button>
+  </div>
+  <div class="drawer-backdrop" id="drawerBackdrop"></div>
 </div>
 
 <!-- ============ END SCREEN ============ -->
@@ -2081,6 +2322,39 @@ function markMatchedCards(keys){
     });
   }
 }
+
+// ============ 手機版抽屜 ============
+(function setupMobileDrawers(){
+  const sections = {};
+  document.querySelectorAll('.sidebar-section[data-section]').forEach(el => {
+    sections[el.dataset.section] = el;
+  });
+  const backdrop = document.getElementById('drawerBackdrop');
+  const closeAll = () => {
+    Object.values(sections).forEach(s => s.classList.remove('open'));
+    backdrop.classList.remove('open');
+    document.body.classList.remove('drawer-open');
+  };
+  const openOne = key => {
+    closeAll();
+    if(!sections[key]) return;
+    sections[key].classList.add('open');
+    backdrop.classList.add('open');
+    document.body.classList.add('drawer-open');
+  };
+  const btnHand = document.getElementById('mtHandTypes');
+  const btnRank = document.getElementById('mtRanking');
+  if(btnHand) btnHand.addEventListener('click', () => openOne('handTypes'));
+  if(btnRank) btnRank.addEventListener('click', () => openOne('ranking'));
+  if(backdrop) backdrop.addEventListener('click', closeAll);
+  document.querySelectorAll('.drawer-close').forEach(b => {
+    b.addEventListener('click', closeAll);
+  });
+  // ESC 也可關閉
+  document.addEventListener('keydown', e => {
+    if(e.key === 'Escape' && document.body.classList.contains('drawer-open')) closeAll();
+  });
+})();
 
 // 啟動
 connect();
