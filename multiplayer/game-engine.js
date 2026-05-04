@@ -499,6 +499,7 @@ class Game {
       p.bet = 0;
       p.totalBet = 0;
       p._wasAllIn = false;
+      p._bluffStreak = false;   // AI 詐唬連續性：每手歸零
     });
     this.community = [];
     this.pot = 0;
@@ -1312,26 +1313,41 @@ function aiDecide(game, p){
   }
 
   // flop+
-  const bluff = Math.random() < 0.12;
+  // === 詐唬連續性 ===
+  // 上一條街已經詐唬過 → 這條街繼續詐唬機率 +25%（最高 ~37%），形成 multi-street barrel
+  // 如果這條街沒詐唬／改 fold 或 call → 連續斷掉
+  const baseBluff = 0.12;
+  const streakBoost = p._bluffStreak ? 0.25 : 0;
+  const bluffChance = baseBluff + streakBoost;
+  const bluff = Math.random() < bluffChance;
+  // 強牌 value bet
   if(winrate > 0.70 && Math.random() < aggression){
     const sz = game.pot * (0.5 + Math.random() * 0.7);
+    p._bluffStreak = false;   // 真價值下注，不算 bluff streak
     return { type: 'raise', amount: Math.floor(p.bet + sz) };
   }
   if(winrate > 0.45){
     if(need === 0){
       if(Math.random() < 0.4){
         const sz = game.pot * (0.4 + Math.random() * 0.4);
+        p._bluffStreak = false;
         return { type: 'raise', amount: Math.floor(p.bet + sz) };
       }
+      p._bluffStreak = false;
       return { type: 'check' };
     }
-    if(potOdds < winrate) return { type: 'call' };
+    if(potOdds < winrate){ p._bluffStreak = false; return { type: 'call' }; }
+    p._bluffStreak = false;
     return { type: 'fold' };
   }
+  // 弱牌詐唬：need=0 → 偷池；need>0 → check-raise bluff（極少數狀況才開）
   if(bluff && need === 0){
-    const sz = game.pot * 0.5;
+    const sz = game.pot * (0.45 + Math.random() * 0.25);   // 半池 ~ 七成池，sizing 帶點變化
+    p._bluffStreak = true;     // 標記：下一條街提高詐唬機率（barrel）
     return { type: 'raise', amount: Math.floor(p.bet + sz) };
   }
+  // 上一街 bluff 被 call、這街選擇放棄 → 連續斷掉
+  if(p._bluffStreak) p._bluffStreak = false;
   if(need === 0) return { type: 'check' };
   if(potOdds < winrate * 0.8) return { type: 'call' };
   return { type: 'fold' };

@@ -108,6 +108,27 @@
   .copy-btn{padding:6px 12px;background:var(--panel-2);border:1px solid var(--felt-edge);color:var(--text);border-radius:5px;font-size:12px;letter-spacing:1px;margin-left:8px}
   .copy-btn:hover{border-color:var(--gold);color:var(--gold)}
 
+  /* ===== 遊戲規則簡介（等待室） ===== */
+  .rules-box{
+    margin:14px 0 4px;background:rgba(231,181,59,.06);border:1px solid var(--felt-edge);
+    border-radius:10px;overflow:hidden
+  }
+  .rules-box summary{
+    cursor:pointer;padding:10px 14px;font-size:13px;font-weight:700;letter-spacing:2px;
+    color:var(--gold);user-select:none;list-style:none;
+    display:flex;align-items:center;justify-content:space-between
+  }
+  .rules-box summary::-webkit-details-marker{display:none}
+  .rules-box summary::after{content:'▾';transition:transform .2s;font-size:16px}
+  .rules-box[open] summary::after{transform:rotate(180deg)}
+  .rules-box summary:hover{background:rgba(231,181,59,.1)}
+  .rules-body{padding:6px 14px 14px;display:flex;flex-direction:column;gap:10px}
+  .rule-item{display:flex;gap:10px;align-items:flex-start;padding:8px 10px;background:rgba(0,0,0,.25);border-radius:7px}
+  .rule-icon{font-size:22px;flex-shrink:0;line-height:1.2}
+  .rule-text{display:flex;flex-direction:column;gap:3px;font-size:12.5px;color:var(--text-dim);line-height:1.55;text-align:left}
+  .rule-text strong{color:var(--gold);font-size:13px;letter-spacing:1.5px}
+  .rule-text em{color:#fcc847;font-style:normal;background:rgba(231,181,59,.12);padding:1px 5px;border-radius:3px;letter-spacing:0}
+
   /* ===== Game Screen ===== */
   #game{flex-direction:row;padding:0}
   .main{flex:1;display:flex;flex-direction:column;min-width:0}
@@ -675,6 +696,14 @@
     .avatar-grid.open{max-height:240px}
     .avatar-cell{font-size:18px}
 
+    /* rules box mobile */
+    .rules-box summary{font-size:12px;letter-spacing:1px;padding:9px 12px}
+    .rules-body{padding:4px 10px 10px;gap:8px}
+    .rule-item{padding:6px 8px;gap:8px}
+    .rule-icon{font-size:18px}
+    .rule-text{font-size:11.5px;line-height:1.5}
+    .rule-text strong{font-size:12px;letter-spacing:1px}
+
     /* Lobby 角色 / 變體 grid 改 3 / 2 欄 */
     .char-grid{grid-template-columns:repeat(3,1fr);max-height:none;gap:5px}
     .char-card{padding:6px 2px}
@@ -979,6 +1008,47 @@
     <button class="copy-btn" id="copyCodeBtn">複製邀請連結</button>
     <div class="wait-hint">告訴朋友這 5 個字，他們點「加入房間」輸入就能進來</div>
     <div class="wait-players" id="waitPlayers"></div>
+
+    <details class="rules-box" id="rulesBox">
+      <summary>📜 遊戲規則簡介（點開）</summary>
+      <div class="rules-body">
+        <div class="rule-item">
+          <div class="rule-icon">🎯</div>
+          <div class="rule-text">
+            <strong>標準德州撲克 + 角色 / 能力系統</strong>
+            <span>每局每位玩家有「角色天賦」（一場一個，效果整局生效）跟「能力」（會在過程中拿到）。</span>
+          </div>
+        </div>
+        <div class="rule-item">
+          <div class="rule-icon">⚔️</div>
+          <div class="rule-text">
+            <strong>KO 對手 = 獲得能力</strong>
+            <span>用比牌打掉一個對手 → 你抽 3 選 1 個能力。同手 KO 兩個就抽兩次、三個就三次。<em>例：第一手大家都 all-in、你最大 → 一次幹掉 3 個對手 → 連抽 3 個能力。</em></span>
+          </div>
+        </div>
+        <div class="rule-item">
+          <div class="rule-icon">📈</div>
+          <div class="rule-text">
+            <strong>升盲階段獎勵</strong>
+            <span>第一次升盲（BB 400）＆ 第三次升盲（BB 1600）時，<em>所有活著的玩家</em>都會輪流抽 3 選 1 個能力。沒選的話 30 秒後系統隨機。</span>
+          </div>
+        </div>
+        <div class="rule-item">
+          <div class="rule-icon">🎲</div>
+          <div class="rule-text">
+            <strong>能力範例</strong>
+            <span>「不可一世」用高牌贏比牌 → 每位輸家加付你 1 BB。「連勝加成」連贏 3 場後每場再賺 1 SB。「邊池小偷」贏邊池 → 多偷 20% 籌碼。</span>
+          </div>
+        </div>
+        <div class="rule-item">
+          <div class="rule-icon">🏁</div>
+          <div class="rule-text">
+            <strong>勝利條件</strong>
+            <span>把對手全部打到 0 籌碼為止。最後留在桌上的就是冠軍。</span>
+          </div>
+        </div>
+      </div>
+    </details>
 
     <div class="mode-section" id="modeSection">
       <div class="lbl-h">— 變體玩法（房主決定）—</div>
@@ -1447,17 +1517,23 @@ let choosePowerCdTimer = null;
 let myTurnWarnTimer = null;
 let myTurnDangerTimer = null;
 
-function showChoosePowerModal(choices, deadline, picksRemaining){
+function showChoosePowerModal(choices, deadline, picksRemaining, isStagePick){
   closeChoosePowerModal();
   const overlay = document.createElement('div');
   overlay.className = 'power-pick-overlay';
   overlay.id = 'powerPickOverlay';
-  // 多殺多選：標題提示「還可以再挑 N 次」
-  const remaining = picksRemaining || 1;
-  const titleSuffix = remaining > 1 ? `（還剩 ${remaining} 次）` : '';
+  // 標題：依「階段選擇」或「KO 獎勵」決定
+  let title;
+  if(isStagePick){
+    title = '★ 階段獎勵 · 選個能力';
+  } else {
+    const remaining = picksRemaining || 1;
+    const suffix = remaining > 1 ? `（還剩 ${remaining} 次）` : '';
+    title = `★ 你淘汰了對手 · 選個能力${suffix}`;
+  }
   overlay.innerHTML = `
     <div class="power-pick-card">
-      <div class="pp-title">★ 你淘汰了對手 · 選個能力${titleSuffix}</div>
+      <div class="pp-title">${title}</div>
       <div class="pp-sub">3 選 1 · <span class="pp-cd" id="ppCd">30</span> 秒後系統隨機選</div>
       <div class="power-pick-grid">
         ${choices.map((c,i)=>`<div class="power-card" data-id="${c.id}">
@@ -1488,14 +1564,20 @@ function closeChoosePowerModal(){
   if(choosePowerCdTimer){ clearInterval(choosePowerCdTimer); choosePowerCdTimer = null; }
 }
 
-function showPickPendingBanner(killerName, deadline, picksRemaining){
+function showPickPendingBanner(killerName, deadline, picksRemaining, isStagePick){
   closePickPendingBanner();
   const el = document.createElement('div');
   el.className = 'pick-pending-banner';
   el.id = 'pickPendingBanner';
-  const remaining = picksRemaining || 1;
-  const suffix = remaining > 1 ? `（還剩 ${remaining} 次）` : '';
-  el.innerHTML = `🎁 <span><strong>${killerName}</strong> 淘汰對手，正在選能力${suffix}…</span><span class="cd" id="ppbCd">30</span><span>s</span>`;
+  let inner;
+  if(isStagePick){
+    inner = `🎁 <span><strong>${killerName}</strong> 正在挑階段獎勵能力…</span>`;
+  } else {
+    const remaining = picksRemaining || 1;
+    const suffix = remaining > 1 ? `（還剩 ${remaining} 次）` : '';
+    inner = `🎁 <span><strong>${killerName}</strong> 淘汰對手，正在選能力${suffix}…</span>`;
+  }
+  el.innerHTML = `${inner}<span class="cd" id="ppbCd">30</span><span>s</span>`;
   document.body.appendChild(el);
   if(pickPendingTimer) clearInterval(pickPendingTimer);
   pickPendingTimer = setInterval(()=>{
@@ -2607,13 +2689,21 @@ function handleMessage(m){
       if(myTalent === '__random__') _pendingRandomReveal = true;
       break;
     case 'choose-power':
-      showChoosePowerModal(m.choices || [], m.deadline, m.picksRemaining);
+      showChoosePowerModal(m.choices || [], m.deadline, m.picksRemaining, m.isStagePick);
       break;
     case 'power-pick-pending':
       // 我自己被淘汰了就不用看對手在選什麼
       if(m.killerId !== myId && isMeAlive()){
-        showPickPendingBanner(m.killerName || '某人', m.deadline, m.picksRemaining);
+        showPickPendingBanner(m.killerName || '某人', m.deadline, m.picksRemaining, m.isStagePick);
       }
+      break;
+    case 'stage-picks-start': {
+      // 階段獎勵開始：跳一個 toast 提醒
+      toast(`★ 階段 ${m.level} 獎勵：每位玩家選一個能力（盲注 ${m.sb}/${m.bb}）`);
+      break;
+    }
+    case 'stage-picks-end':
+      // 全員選完，開始下一手
       break;
     case 'power-applied':
       closeChoosePowerModal();

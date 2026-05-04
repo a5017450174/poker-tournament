@@ -170,15 +170,96 @@ class Room {
       return;
     }
 
-    // 上一手結束：如果有待升盲，先升然後跳提醒，再開新手
+    // 上一手結束：如果有待升盲，先升然後跳提醒
     const bu = this.game.applyPendingBlindUp();
     if(bu){
       this.broadcast({ type:'blind-up', level: bu.level, sb: bu.sb, bb: bu.bb });
-      // 跳完提醒後再開新手（讓 client 看 2.5 秒）
-      setTimeout(()=> this._startNewHand(), 2500);
+      setTimeout(()=> {
+        // 升到 level 2 (BB 400) 或 level 4 (BB 1600) → 所有活著的玩家都選一個能力
+        if(bu.level === 2 || bu.level === 4){
+          this._startStagePicks(bu.level);
+        } else {
+          this._startNewHand();
+        }
+      }, 2500);
       return;
     }
     this._startNewHand();
+  }
+
+  // 階段選擇：升盲到 2 / 4 時，所有活著的玩家輪流挑一個能力
+  _startStagePicks(level){
+    this._stagePickQueue = this.game.players.filter(p => p.alive).map(p => p.id);
+    this._stagePickLevel = level;
+    // 暫停升盲計時器（整段階段選擇期間都暫停）
+    if(this.blindTimer){ clearInterval(this.blindTimer); this.blindTimer = null; }
+    this._blindElapsedAtPause = Date.now() - this.game.blindStartTs;
+    // 廣播：階段選擇開始
+    this.broadcast({
+      type: 'stage-picks-start',
+      level,
+      sb: this.game.sb, bb: this.game.bb,
+      queue: this._stagePickQueue.slice(),
+    });
+    setTimeout(()=> this._processNextStagePick(), 600);
+  }
+
+  _processNextStagePick(){
+    if(!this._stagePickQueue || !this._stagePickQueue.length){
+      // 全部選完 → 恢復升盲、開始新一手
+      this._stagePickQueue = null;
+      this._stagePickLevel = null;
+      if(this._blindElapsedAtPause){
+        this.game.blindStartTs = Date.now() - this._blindElapsedAtPause;
+        this._blindElapsedAtPause = 0;
+      }
+      this._startBlindTimer();
+      this.broadcast({ type:'stage-picks-end' });
+      setTimeout(()=> this._startNewHand(), 800);
+      return;
+    }
+    const nextId = this._stagePickQueue.shift();
+    const player = this.game.players.find(p => p.id === nextId);
+    if(!player || !player.alive){
+      this._processNextStagePick();
+      return;
+    }
+    const choices = this.game.rollPowerChoices(nextId, 3);
+    if(!choices.length){
+      // 沒能力可選了（全拿過）→ 跳過
+      this._processNextStagePick();
+      return;
+    }
+    const deadline = Date.now() + 30000;
+    this.powerPickState = {
+      playerId: nextId, choices, deadline, timer: null,
+      kind: 'stage',
+    };
+
+    // 廣播：誰在選
+    this.broadcast({
+      type: 'power-pick-pending',
+      killerId: nextId, killerName: player.name,
+      eliminated: [], deadline,
+      isAI: !!player.isAI,
+      isStagePick: true,
+      stageLevel: this._stagePickLevel,
+    });
+
+    if(player.isAI){
+      const pick = choices[Math.floor(Math.random()*choices.length)];
+      setTimeout(()=> this._finishPowerPick(pick.id), 800);
+      return;
+    }
+    // 真人
+    const ws = this.humanIds.get(nextId);
+    if(ws){
+      send(ws, { type:'choose-power', choices, deadline, isStagePick: true });
+    }
+    this.powerPickState.timer = setTimeout(()=>{
+      const pick = choices[Math.floor(Math.random()*choices.length)];
+      this._finishPowerPick(pick.id);
+    }, 30000);
   }
 
   _startNewHand(){
@@ -315,11 +396,13 @@ class Room {
       result,
       players: this.game.players.map(p=>({ id:p.id, chips:p.chips, alive:p.alive })),
     });
-    // 等 7.5 秒（client 顯示動畫 + 觸發 toast）後處理能力選擇 / 開新一手
+    // 等 7.5 秒（client 顯示動畫 + 觸發 toast）
+    // 接著兩個機制依序觸發：
+    //   1. KO 獎勵：本手 KO N 人 → killer 連抽 N 個能力（任何階段都觸發）
+    //   2. 升盲階段獎勵：_nextHand 內，升到 level 2 / 4 時所有人各抽 1 個
     setTimeout(()=>{
       this.phase = 'between-hands';
-      // 冠軍判定：除了贏家外沒人能繼續打就直接結算，不再讓贏家挑能力
-      // （含活著且還有 chips 的人 + 預支人生還沒用過、可借大盲續命的人）
+      // 冠軍判定
       const continuing = this.game.players.filter(p =>
         p.alive && (
           p.chips > 0 ||
@@ -327,21 +410,12 @@ class Room {
         )
       ).length;
       if(continuing <= 1){
-        this._nextHand();   // 會走到 _endTournament
+        this._nextHand();
         return;
       }
-      // 階段限制：整場只開放兩次能力選擇
-      // level 1（初始 BB 200）：不挑（熱身）
-      // level 2（BB 400）：挑 ← 第一次
-      // level 3（BB 800）：不挑
-      // level 4（BB 1600）：挑 ← 第二次
-      // level 5+（BB 3200 起）：不挑（後期靠累積實力決勝負）
-      const stage = this.game.blindLevel || 1;
-      const inPickStage = (stage === 2 || stage === 4);
+      // KO 獎勵：本手有殺人就抽（同手 N 殺 → 連抽 N 次）
       const elimCount = (result.eliminated || []).length;
-
-      if(inPickStage && result.killer && elimCount > 0){
-        // 同時 KO N 人 → 連抽 N 次能力（每次都從沒拿過的池中抽 3 選 1）
+      if(result.killer && elimCount > 0){
         this._pendingPickCount = elimCount;
         this._startPowerPick(result.killer, result.eliminated);
       } else {
@@ -362,7 +436,7 @@ class Room {
       return;
     }
     const deadline = Date.now() + 30000;
-    this.powerPickState = { playerId: killerId, choices, deadline, timer: null };
+    this.powerPickState = { playerId: killerId, choices, deadline, timer: null, kind: 'ko' };
     // 暫停升盲計時器（紀錄已過時間）
     if(this.blindTimer){ clearInterval(this.blindTimer); this.blindTimer = null; }
     this._blindElapsedAtPause = Date.now() - this.game.blindStartTs;
@@ -394,7 +468,7 @@ class Room {
 
   _finishPowerPick(powerId){
     if(!this.powerPickState) return;
-    const { playerId, timer } = this.powerPickState;
+    const { playerId, timer, kind } = this.powerPickState;
     if(timer) clearTimeout(timer);
     this.game.awardPower(playerId, powerId);
     const player = this.game.players.find(p=> p.id === playerId);
@@ -407,10 +481,16 @@ class Room {
       power: power || null,
     });
     this.powerPickState = null;
-    // 多殺多抽：還剩 picks 沒挑就再開一輪（同一個 killer）
+
+    // 階段選擇：處理下一個玩家
+    if(kind === 'stage'){
+      setTimeout(()=> this._processNextStagePick(), 1600);
+      return;
+    }
+
+    // KO bonus 多殺多抽（目前沒地方會觸發 _startPowerPick 走這條，保留邏輯供將來用）
     if(this._pendingPickCount > 0) this._pendingPickCount--;
     if(this._pendingPickCount > 0 && player && player.alive){
-      // 1.6 秒後再給下一個能力選單，讓玩家看到上一個 power-applied 動畫
       setTimeout(()=> {
         if(this.phase !== 'ended' && !this.game.ended){
           this._startPowerPick(playerId, []);
@@ -425,7 +505,6 @@ class Room {
       this._blindElapsedAtPause = 0;
     }
     this._startBlindTimer();
-    // 等 2 秒讓大家看 power-applied 然後開新一手
     setTimeout(()=> this._nextHand(), 2000);
   }
 
