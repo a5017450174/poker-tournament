@@ -771,13 +771,19 @@ class Game {
     return { ok:true };
   }
 
-  // 推進回合：回傳 { phase: 'next-action'|'next-street'|'showdown', currentId? }
+  // 推進回合：回傳 { phase: 'next-action'|'next-street'|'showdown'|'auto-runout', currentId? }
   advance(){
     const remaining = this.players.filter(p=> p.alive && !p.folded);
     if(remaining.length <= 1){
       return { phase: 'showdown' };
     }
     if(this._roundComplete()){
+      // 修正重大 bug：若這條街完成後，能繼續下注的人 ≤ 1（其他人都 all-in），
+      // 不該再進新街給單獨那位玩家亂加注 → 直接把剩下街發完、進 showdown
+      const canStillBet = remaining.filter(p => !p.allIn);
+      if(canStillBet.length <= 1){
+        return this._autoRunout();
+      }
       return this._nextStreet();
     }
     // 找下一個能行動的人
@@ -851,6 +857,58 @@ class Game {
     this.addLog(`◇ River: ${this.community.map(c=>c.rank+c.suit).join(' ')}`);
   }
 
+  // ===== 自動發完剩下的公牌（適用於：能下注的人 ≤ 1 的場面） =====
+  // 不再給玩家行動機會，把 flop/turn/river 一次發到位，之後 server 一張一張秀出來
+  _autoRunout(){
+    this.players.forEach(p => { p.bet = 0; });
+    // 沒人輪到行動了 → 清掉 currentPos 避免 client 仍 highlight 誰
+    this.currentPos = -1;
+    this.toAct = new Set();
+    this.hasActedThisRound = new Set();
+    this.highestBet = 0;
+    const dealt = [];
+    while(this.street !== 'river'){
+      if(this.street === 'preflop'){ this.street = 'flop'; this._dealFlop(); }
+      else if(this.street === 'flop'){ this.street = 'turn'; this._dealTurn(); }
+      else if(this.street === 'turn'){ this.street = 'river'; this._dealRiver(); }
+      else break;
+      dealt.push({ street: this.street, community: this.community.slice() });
+    }
+    return { phase: 'auto-runout', streets: dealt };
+  }
+
+  // ===== 計算 side pots =====
+  // 根據每個玩家的 totalBet 累積，把底池切成「主池 + 邊池們」
+  // 每個 pot 有 amount 跟 eligibleIds（沒棄牌、且至少投到該層的玩家）
+  _computeSidePots(){
+    const all = this.players.filter(p => (p.totalBet || 0) > 0);
+    if(!all.length) return [];
+    const sorted = [...all].sort((a,b) => (a.totalBet||0) - (b.totalBet||0));
+    const pots = [];
+    let prev = 0;
+    for(const p of sorted){
+      const cap = p.totalBet || 0;
+      if(cap > prev){
+        const layerSize = cap - prev;
+        const contribs = sorted.filter(x => (x.totalBet||0) > prev);
+        const potAmt = layerSize * contribs.length;
+        const eligible = contribs.filter(x => !x.folded && x.alive).map(x => x.id);
+        if(potAmt > 0){
+          if(eligible.length){
+            pots.push({ amount: potAmt, eligibleIds: eligible });
+          } else if(pots.length){
+            // 此層沒人有資格贏（理論上不會發生，因為只有棄牌才會 not-eligible）→ 併到上一個
+            pots[pots.length-1].amount += potAmt;
+          } else {
+            pots.push({ amount: potAmt, eligibleIds: [] });
+          }
+        }
+        prev = cap;
+      }
+    }
+    return pots;
+  }
+
   // 比牌結算 → 回傳 { winners, losers, handType, handName, matchedKeys, triggers, foldOut }
   showdown(){
     const remaining = this.players.filter(p=> p.alive && !p.folded);
@@ -879,6 +937,8 @@ class Game {
       const ev = evaluate7(p.hole.concat(this.community), this.validRanks);
       return { p, ev };
     });
+    const evalById = new Map(evals.map(e => [e.p.id, e]));
+    // 整體最佳手牌（用於 talent / hand-name 顯示）
     let best = evals[0].ev.score;
     for(const e of evals) if(cmpScore(e.ev.score, best) > 0) best = e.ev.score;
     const winners = evals.filter(e=> cmpScore(e.ev.score, best) === 0).map(e=> e.p);
@@ -896,14 +956,50 @@ class Game {
       }
     });
 
-    // 平分底池
-    const share = Math.floor(potSnapshot / winners.length);
-    const remain = potSnapshot - share * winners.length;
-    winners.forEach(w=> w.chips += share);
-    if(remain > 0) winners[0].chips += remain;
+    // === Side pot 結算 ===
+    // 每個 pot 各自找 eligible 中最好的牌 → 拿那個 pot
+    // 修正重大 bug：all-in 玩家最多只能拿走自己有蓋到的層級，多餘的歸還給有壓更多的玩家
+    const pots = this._computeSidePots();
+    const potBreakdown = [];
+    const wonChipsById = new Map();   // 玩家 id → 實際贏到的 chips 累積
+    pots.forEach((pot, potIdx) => {
+      const eligibleEvals = pot.eligibleIds
+        .map(id => evalById.get(id))
+        .filter(Boolean);
+      if(!eligibleEvals.length) return;
+      let bestE = eligibleEvals[0].ev.score;
+      for(const e of eligibleEvals) if(cmpScore(e.ev.score, bestE) > 0) bestE = e.ev.score;
+      const potWinners = eligibleEvals.filter(e => cmpScore(e.ev.score, bestE) === 0);
+      const share = Math.floor(pot.amount / potWinners.length);
+      const remainShare = pot.amount - share * potWinners.length;
+      potWinners.forEach(w => {
+        w.p.chips += share;
+        wonChipsById.set(w.p.id, (wonChipsById.get(w.p.id) || 0) + share);
+      });
+      if(remainShare > 0 && potWinners.length){
+        potWinners[0].p.chips += remainShare;
+        wonChipsById.set(potWinners[0].p.id, (wonChipsById.get(potWinners[0].p.id) || 0) + remainShare);
+      }
+      const label = potIdx === 0 ? '主池' : `邊池 ${potIdx}`;
+      this.addLog(`★ ${potWinners.map(w=>w.p.name).join('、')} 贏下${label} ${pot.amount}`);
+      potBreakdown.push({
+        label,
+        amount: pot.amount,
+        winnerIds: potWinners.map(w => w.p.id),
+      });
+    });
     this.pot = 0;
+    // 真正贏到 chip 的人聯集 → 給 UI 顯示用（含 side pot 贏家）
+    const allWinnerIds = new Set([...wonChipsById.keys()]);
+    if(allWinnerIds.size){
+      const realWinners = remaining.filter(p => allWinnerIds.has(p.id));
+      // 重組 winners / losers：贏到任何 pot 的算 winner，其餘算 loser
+      winners.length = 0;
+      winners.push(...realWinners);
+      losers.length = 0;
+      losers.push(...remaining.filter(p => !allWinnerIds.has(p.id)));
+    }
     this.lastWinnerId = winners[0]?.id ?? null;
-    this.addLog(`★ ${winners.map(w=>w.name).join('、')} 贏下底池 ${potSnapshot}（${handName}）`);
 
     // ====== 角色 + 能力：showdown 觸發 ======
     const sb = this.sb, bb = this.bb, handType = best[0];
@@ -1040,6 +1136,7 @@ class Game {
       matchedKeys: sdKeys,
       reveals: remaining.reduce((acc,p)=>{ acc[p.id] = p.hole; return acc; }, {}),
       potWon: potSnapshot,
+      potBreakdown,
       foldOut: false,
       triggers: this._triggers.slice(),
       eliminated,

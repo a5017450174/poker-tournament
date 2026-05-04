@@ -266,6 +266,18 @@ class Room {
       this.broadcast({ type:'street', street: adv.street, community: adv.community });
       // 等 1 秒讓 client 看到新的公牌
       setTimeout(()=> this._scheduleTurn(), 1000);
+    } else if(adv.phase === 'auto-runout'){
+      // All-in 後沒人能再下注 → 自動把 turn / river 一張一張秀，最後再 showdown
+      // 先廣播一次 state 清掉「誰是當前 player」、停掉客戶端的計時環
+      this.turnDeadline = 0;
+      this._broadcastState();
+      const streets = adv.streets || [];
+      let delay = 700;
+      streets.forEach(s => {
+        setTimeout(()=> this.broadcast({ type:'street', street: s.street, community: s.community }), delay);
+        delay += 1100;
+      });
+      setTimeout(()=> this._doShowdown(), delay + 400);
     } else if(adv.phase === 'showdown'){
       this._doShowdown();
     }
