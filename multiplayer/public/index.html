@@ -160,13 +160,47 @@
 
   /* Action panel */
   .actions{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:10}
-  /* 思考時間：獨立 floating panel，放在右邊、可拖曳 */
-  .turn-timer{position:fixed;right:24px;top:120px;width:200px;display:flex;flex-direction:column;gap:6px;background:rgba(20,26,32,.94);border:1px solid var(--gold);padding:8px 12px 10px;border-radius:12px;backdrop-filter:blur(6px);z-index:11;box-shadow:0 8px 28px rgba(0,0,0,.6),0 0 24px rgba(231,181,59,.15)}
-  .turn-timer.hidden{display:none}
-  .turn-timer .tt-handle{cursor:move;text-align:center;font-size:10px;color:var(--gold);letter-spacing:4px;font-weight:700;padding-bottom:4px;border-bottom:1px solid var(--felt-edge)}
-  .turn-timer .tt-row{display:flex;align-items:center;gap:8px}
-  .turn-timer .lbl{font-size:10px;color:var(--text-mute);letter-spacing:2px;flex-shrink:0}
-  .turn-timer .bar{flex:1;height:6px;background:var(--felt-edge);border-radius:99px;overflow:hidden}
+  /* 思考時間光圈：包在 action-row 外面、按時間消逝 */
+  .action-row{position:relative}
+  .action-row::before{
+    content:'';
+    position:absolute;
+    inset:-4px;
+    border-radius:18px;
+    padding:4px;
+    background:conic-gradient(from -90deg, var(--gold) 0%, var(--gold) calc(var(--turn-pct,0) * 1%), transparent calc(var(--turn-pct,0) * 1%), transparent 100%);
+    -webkit-mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    -webkit-mask-composite:xor;
+    mask:linear-gradient(#000 0 0) content-box,linear-gradient(#000 0 0);
+    mask-composite:exclude;
+    filter:drop-shadow(0 0 8px var(--gold));
+    opacity:0;
+    transition:opacity .25s;
+    pointer-events:none;
+    z-index:0;
+  }
+  .action-row.turn-active::before{opacity:1}
+  .action-row .turn-sec-badge{
+    position:absolute;
+    top:-14px;
+    right:-6px;
+    background:linear-gradient(135deg,var(--gold),#fcc847);
+    color:#000;
+    font-weight:900;
+    font-size:14px;
+    padding:4px 12px;
+    border-radius:99px;
+    box-shadow:0 0 16px rgba(231,181,59,.6),0 4px 8px rgba(0,0,0,.5);
+    letter-spacing:1px;
+    font-variant-numeric:tabular-nums;
+    display:none;
+    z-index:5;
+  }
+  .action-row.turn-active .turn-sec-badge{display:block}
+  .action-row.turn-warn::before{filter:drop-shadow(0 0 12px #ff7b3a)}
+  .action-row.turn-warn::before{background:conic-gradient(from -90deg, #ff7b3a 0%, #ff7b3a calc(var(--turn-pct,0) * 1%), transparent calc(var(--turn-pct,0) * 1%), transparent 100%)}
+  .action-row.turn-danger::before{background:conic-gradient(from -90deg, var(--red) 0%, var(--red) calc(var(--turn-pct,0) * 1%), transparent calc(var(--turn-pct,0) * 1%), transparent 100%)!important;filter:drop-shadow(0 0 16px var(--red));animation:turnDangerFlash .35s ease-in-out infinite alternate}
+  @keyframes turnDangerFlash{ to{ filter:drop-shadow(0 0 24px var(--red)) } }
   .turn-timer .bar .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .1s linear}
   .turn-timer .bar .fill.warn{background:linear-gradient(90deg,var(--gold),var(--red))}
   .turn-timer .bar .fill.danger{background:var(--red)}
@@ -441,6 +475,15 @@
   .level-row button.active{background:var(--gold);color:#000;border-color:var(--gold)}
   .mode-detail-tip{padding:8px 12px;background:rgba(0,0,0,.4);border-radius:6px;font-size:12px;color:var(--text-dim);line-height:1.5;min-height:36px}
 
+  /* 牌型大小列表（側欄） */
+  .hand-types-list{list-style:none;display:flex;flex-direction:column;gap:3px}
+  .hand-types-list li{display:flex;gap:10px;align-items:center;padding:7px 10px;border-radius:5px;background:rgba(255,255,255,.02);font-size:13px;color:var(--text-dim);transition:all .25s}
+  .hand-types-list li .hr-num{color:var(--text-mute);font-weight:700;width:22px;text-align:center;font-size:12px}
+  .hand-types-list li .hr-name{flex:1;font-weight:600}
+  .hand-types-list li.active{background:rgba(231,181,59,.28);border-left:3px solid var(--gold);padding-left:14px;font-size:15px;animation:rankBreathe 1.6s ease infinite alternate;box-shadow:0 0 0 1px rgba(231,181,59,.3) inset}
+  .hand-types-list li.active .hr-num,.hand-types-list li.active .hr-name{color:var(--gold);font-weight:900}
+  @keyframes rankBreathe{ to{ background:rgba(231,181,59,.5); box-shadow:0 0 18px rgba(231,181,59,.5),0 0 0 1px var(--gold) inset } }
+
   /* 我的牌型呼吸燈（側欄） */
   .my-hand-block{padding:14px 16px;border-bottom:1px solid var(--felt-edge);background:linear-gradient(180deg,rgba(231,181,59,.08),transparent)}
   .my-hand-block .lbl{font-size:10px;color:var(--text-mute);letter-spacing:2px;margin-bottom:4px}
@@ -584,17 +627,9 @@
       </div>
     </div>
 
-    <div class="turn-timer hidden" id="turnTimer">
-      <div class="tt-handle">⋮⋮ 你的回合</div>
-      <div class="tt-row">
-        <span class="lbl">思考</span>
-        <div class="bar"><div class="fill" id="turnFill" style="width:100%"></div></div>
-        <span class="sec" id="turnSec">—</span>
-      </div>
-    </div>
-
     <div class="actions">
-      <div class="action-row">
+      <div class="action-row" id="actionRow">
+        <div class="turn-sec-badge" id="turnSecBadge">—</div>
         <div class="btns" id="actionBtns">
           <button id="btnFold" class="danger" disabled>棄牌</button>
           <button id="btnCheck" disabled>過牌</button>
@@ -625,6 +660,21 @@
     <div class="my-hand-block" id="myHandBlock" style="display:none">
       <div class="lbl">你目前的牌型</div>
       <div class="val" id="myHandVal">—</div>
+    </div>
+    <h4>牌型大小（從強到弱）</h4>
+    <div class="panel-block">
+      <ul class="hand-types-list" id="handTypesList">
+        <li data-rank="9"><span class="hr-num">1</span><span class="hr-name">皇家同花順</span></li>
+        <li data-rank="8"><span class="hr-num">2</span><span class="hr-name">同花順</span></li>
+        <li data-rank="7"><span class="hr-num">3</span><span class="hr-name">鐵支</span></li>
+        <li data-rank="6"><span class="hr-num">4</span><span class="hr-name">葫蘆</span></li>
+        <li data-rank="5"><span class="hr-num">5</span><span class="hr-name">同花</span></li>
+        <li data-rank="4"><span class="hr-num">6</span><span class="hr-name">順子</span></li>
+        <li data-rank="3"><span class="hr-num">7</span><span class="hr-name">三條</span></li>
+        <li data-rank="2"><span class="hr-num">8</span><span class="hr-name">兩對</span></li>
+        <li data-rank="1"><span class="hr-num">9</span><span class="hr-name">一對</span></li>
+        <li data-rank="0"><span class="hr-num">10</span><span class="hr-name">高牌</span></li>
+      </ul>
     </div>
     <h4>籌碼排行</h4>
     <div class="panel-block">
@@ -1281,16 +1331,22 @@ function updateMyHand(state){
   const block = $('#myHandBlock');
   if(!block) return;
   const me = state.players.find(p=> p.id === myId);
-  if(!me || !me.hole || me.hole.length < 2 || (state.community||[]).length < 3 || me.folded || !me.alive){
+  const visibleCnt = (me?.hole?.length || 0) + (state.community?.length || 0);
+  if(!me || visibleCnt < 5 || me.folded || !me.alive){
     block.style.display = 'none';
+    updateHandTypesList(-1);
     lastMyHandType = -1;
     return;
   }
-  const all = me.hole.concat(state.community);
+  const all = (me.hole || []).concat(state.community);
   const t = _bestType(all);
-  if(t < 0){ block.style.display = 'none'; return; }
+  if(t < 0){ block.style.display = 'none'; updateHandTypesList(-1); return; }
   block.style.display = '';
   $('#myHandVal').textContent = HAND_TYPES[t] || '?';
+  // 小盲注：提示玩家只用可見牌計算
+  if(me.talent === 'small_blind'){
+    $('#myHandVal').innerHTML = (HAND_TYPES[t] || '?') + ` <span style="font-size:11px;color:var(--text-mute);letter-spacing:1px">（只用可見牌算）</span>`;
+  }
   if(lastMyHandType >= 0 && t > lastMyHandType){
     block.classList.remove('up');
     void block.offsetWidth;
@@ -1299,6 +1355,15 @@ function updateMyHand(state){
     setTimeout(()=> block.classList.remove('up'), 1700);
   }
   lastMyHandType = t;
+  updateHandTypesList(t);
+}
+
+function updateHandTypesList(curType){
+  const list = $('#handTypesList');
+  if(!list) return;
+  list.querySelectorAll('li').forEach(li=>{
+    li.classList.toggle('active', +li.dataset.rank === curType);
+  });
 }
 
 function cardEl(c, small){
@@ -1388,11 +1453,14 @@ function clearMyTurn(){
   myValidActions = [];
   myTurnDeadline = 0;
   $$('.btns button').forEach(b=> b.disabled = true);
-  $('#turnFill').style.width = '100%';
-  $('#turnSec').textContent = '—';
-  // 立刻隱藏 timer，不等下個 tick
-  const tt = $('#turnTimer');
-  if(tt) tt.classList.add('hidden');
+  // 立刻關掉光圈
+  const row = $('#actionRow');
+  if(row){
+    row.classList.remove('turn-active','turn-warn','turn-danger');
+    row.style.removeProperty('--turn-pct');
+  }
+  const badge = $('#turnSecBadge');
+  if(badge) badge.textContent = '—';
 }
 
 function updateRaiseVisual(){
@@ -1454,76 +1522,28 @@ function sendAction(action){
   clearMyTurn();
 }
 
-// 思考時間倒數渲染（只有輪到自己時才顯示）
+// 思考時間：在 action-row 邊上畫光圈 + 右上角 badge 顯示秒數
 function startTurnTicker(){
   if(turnTickerId) clearInterval(turnTickerId);
   turnTickerId = setInterval(()=>{
-    const timer = $('#turnTimer');
-    if(!timer) return;
+    const row = $('#actionRow');
+    const badge = $('#turnSecBadge');
+    if(!row) return;
     if(!myTurnDeadline || myValidActions.length === 0){
-      timer.classList.add('hidden');
+      row.classList.remove('turn-active','turn-warn','turn-danger');
       return;
     }
-    timer.classList.remove('hidden');
+    row.classList.add('turn-active');
     const remain = Math.max(0, myTurnDeadline - Date.now());
     const total = (lobby?.settings?.baseTurnSec || 20) * 1000;
     const pct = Math.min(100, (remain/total) * 100);
-    const fill = $('#turnFill');
-    fill.style.width = pct + '%';
-    $('#turnSec').textContent = Math.ceil(remain/1000) + 's';
-    fill.classList.toggle('warn', pct < 40);
-    fill.classList.toggle('danger', pct < 15);
-  }, 100);
+    row.style.setProperty('--turn-pct', pct);
+    if(badge) badge.textContent = Math.ceil(remain/1000) + 's';
+    row.classList.toggle('turn-warn', pct < 40 && pct >= 15);
+    row.classList.toggle('turn-danger', pct < 15);
+  }, 80);
 }
 startTurnTicker();
-
-// 思考時間 panel 拖曳
-function makeTurnTimerDraggable(){
-  const el = $('#turnTimer');
-  const handle = el?.querySelector('.tt-handle');
-  if(!el || !handle) return;
-  let dragging = false, sx, sy, sl, st;
-  const onDown = e => {
-    dragging = true;
-    const ev = e.touches ? e.touches[0] : e;
-    sx = ev.clientX; sy = ev.clientY;
-    const rect = el.getBoundingClientRect();
-    sl = rect.left; st = rect.top;
-    el.style.left = sl+'px'; el.style.top = st+'px';
-    el.style.right = 'auto'; el.style.bottom = 'auto';
-    document.body.style.cursor = 'grabbing';
-    e.preventDefault();
-  };
-  const onMove = e => {
-    if(!dragging) return;
-    const ev = e.touches ? e.touches[0] : e;
-    const dx = ev.clientX - sx, dy = ev.clientY - sy;
-    let nl = sl + dx, nt = st + dy;
-    nl = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, nl));
-    nt = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, nt));
-    el.style.left = nl+'px'; el.style.top = nt+'px';
-  };
-  const onUp = () => {
-    if(!dragging) return;
-    dragging = false;
-    document.body.style.cursor = '';
-    try{ localStorage.setItem('turnTimerPos', JSON.stringify({left:el.style.left, top:el.style.top})); }catch(e){}
-  };
-  handle.addEventListener('mousedown', onDown);
-  handle.addEventListener('touchstart', onDown, {passive:false});
-  document.addEventListener('mousemove', onMove);
-  document.addEventListener('touchmove', onMove, {passive:false});
-  document.addEventListener('mouseup', onUp);
-  document.addEventListener('touchend', onUp);
-  try{
-    const saved = JSON.parse(localStorage.getItem('turnTimerPos')||'null');
-    if(saved && saved.left && saved.top){
-      el.style.left = saved.left; el.style.top = saved.top;
-      el.style.right = 'auto'; el.style.bottom = 'auto';
-    }
-  }catch(e){}
-}
-makeTurnTimerDraggable();
 
 // 加注 floating 拖曳
 function makeRaiseDraggable(){

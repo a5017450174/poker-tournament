@@ -1054,22 +1054,34 @@ class Game {
       bbPos: this.bbPos,
       highestBet: this.highestBet,
       minRaise: this.minRaise,
-      players: this.players.map(p=>({
-        id: p.id,
-        name: p.name,
-        isAI: p.isAI,
-        chips: p.chips,
-        bet: p.bet,
-        totalBet: p.totalBet,
-        alive: p.alive,
-        folded: p.folded,
-        allIn: p.allIn,
-        talent: p.talent || null,
-        powerUps: (p.powerUps || []).slice(),
-        // 只給自己的底牌；其他人只說有沒有牌
-        hole: (forPlayerId !== null && p.id === forPlayerId) ? p.hole : null,
-        hasHole: p.hole.length > 0,
-      })),
+      players: this.players.map(p=>{
+        // 角色：大盲全黑 / 小盲只看一張
+        let visibleHole = null;
+        if(forPlayerId !== null && p.id === forPlayerId){
+          if(p.talent === 'big_blind'){
+            visibleHole = null;     // client 會 render 兩張背面
+          } else if(p.talent === 'small_blind' && p.hole.length >= 2){
+            visibleHole = [p.hole[0]];   // 只送第一張，第二張 client render 背面
+          } else {
+            visibleHole = p.hole;
+          }
+        }
+        return {
+          id: p.id,
+          name: p.name,
+          isAI: p.isAI,
+          chips: p.chips,
+          bet: p.bet,
+          totalBet: p.totalBet,
+          alive: p.alive,
+          folded: p.folded,
+          allIn: p.allIn,
+          talent: p.talent || null,
+          powerUps: (p.powerUps || []).slice(),
+          hole: visibleHole,
+          hasHole: p.hole.length > 0,
+        };
+      }),
       mode: this.mode,
       level: this.level,
       removedRanks: this.removedRanks.slice(),
