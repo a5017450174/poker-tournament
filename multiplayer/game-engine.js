@@ -418,23 +418,32 @@ class Game {
     return pool.slice(0, n);
   }
 
-  // 升盲檢查（外部 server tick 呼叫，回傳是否升盲）
+  // 升盲檢查（外部 server tick 呼叫）
+  // 不立即升盲：時間到只設 pendingBlindUp 旗標，等下一手開始時才真的升盲 + 跳提醒
   tickBlind(){
     if(!this.started || this.ended) return null;
     const elapsed = Date.now() - this.blindStartTs;
-    if(elapsed >= this.blindMs){
-      this.blindLevel++;
-      this.sb *= 2;
-      this.bb *= 2;
-      this.blindStartTs = Date.now();
-      this.addLog(`▲ 升盲：${this.sb}/${this.bb}`);
-      return { level: this.blindLevel, sb: this.sb, bb: this.bb };
+    if(elapsed >= this.blindMs && !this.pendingBlindUp){
+      this.pendingBlindUp = true;
     }
     return null;
   }
 
+  // 真正套用升盲（server 在 _nextHand 開新一手前呼叫）
+  applyPendingBlindUp(){
+    if(!this.pendingBlindUp) return null;
+    this.pendingBlindUp = false;
+    this.blindLevel++;
+    this.sb *= 2;
+    this.bb *= 2;
+    this.blindStartTs = Date.now();
+    this.addLog(`▲ 升盲：${this.sb}/${this.bb}`);
+    return { level: this.blindLevel, sb: this.sb, bb: this.bb };
+  }
+
   blindMsLeft(){
     if(!this.started || this.ended) return this.blindMs;
+    if(this.pendingBlindUp) return 0;
     return Math.max(0, this.blindMs - (Date.now() - this.blindStartTs));
   }
 

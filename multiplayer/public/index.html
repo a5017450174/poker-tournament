@@ -109,6 +109,11 @@
   .card.back::after{content:"";position:absolute;inset:6px;border:1.5px solid rgba(255,255,255,.25);border-radius:4px}
   .card.small{width:42px;height:60px}
   .card.small .r,.card.small .s{font-size:15px}
+  /* 我自己的底牌放大 */
+  .seat[data-pos="0"] .hole .card.small{width:68px;height:96px;border-radius:8px}
+  .seat[data-pos="0"] .hole .card.small .r,
+  .seat[data-pos="0"] .hole .card.small .s{font-size:26px}
+  .seat[data-pos="0"] .hole{min-height:104px;gap:8px}
   .card.matched{box-shadow:0 0 0 4px var(--gold),0 0 30px var(--gold)!important;z-index:5;animation:matchPulse .55s ease-in-out infinite alternate}
   @keyframes matchPulse{
     from{transform:translateY(-6px) scale(1.05)}
@@ -155,8 +160,11 @@
 
   /* Action panel */
   .actions{position:fixed;left:50%;bottom:16px;transform:translateX(-50%);display:flex;flex-direction:column;align-items:center;gap:6px;z-index:10}
-  .turn-timer{display:flex;align-items:center;gap:8px;background:rgba(20,26,32,.94);border:1px solid var(--felt-edge);padding:5px 12px;border-radius:99px;backdrop-filter:blur(6px);width:280px}
+  /* 思考時間：獨立 floating panel，放在右邊、可拖曳 */
+  .turn-timer{position:fixed;right:24px;top:120px;width:200px;display:flex;flex-direction:column;gap:6px;background:rgba(20,26,32,.94);border:1px solid var(--gold);padding:8px 12px 10px;border-radius:12px;backdrop-filter:blur(6px);z-index:11;box-shadow:0 8px 28px rgba(0,0,0,.6),0 0 24px rgba(231,181,59,.15)}
   .turn-timer.hidden{display:none}
+  .turn-timer .tt-handle{cursor:move;text-align:center;font-size:10px;color:var(--gold);letter-spacing:4px;font-weight:700;padding-bottom:4px;border-bottom:1px solid var(--felt-edge)}
+  .turn-timer .tt-row{display:flex;align-items:center;gap:8px}
   .turn-timer .lbl{font-size:10px;color:var(--text-mute);letter-spacing:2px;flex-shrink:0}
   .turn-timer .bar{flex:1;height:6px;background:var(--felt-edge);border-radius:99px;overflow:hidden}
   .turn-timer .bar .fill{height:100%;background:linear-gradient(90deg,var(--green),var(--gold));transition:width .1s linear}
@@ -383,11 +391,22 @@
   .pick-pending-banner{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(124,77,255,.95);color:#fff;padding:12px 26px;border-radius:99px;font-size:15px;font-weight:700;letter-spacing:2px;z-index:140;box-shadow:0 8px 28px rgba(124,77,255,.5);display:flex;align-items:center;gap:12px}
   .pick-pending-banner .cd{font-weight:900;font-size:17px;color:#fcc847;font-variant-numeric:tabular-nums}
 
-  /* 能力 chip 在座位旁 */
-  .seat .powers-row{position:absolute;display:flex;gap:2px;flex-wrap:wrap;max-width:140px;justify-content:center}
-  .seat[data-pos="0"] .powers-row,.seat[data-pos="1"] .powers-row,.seat[data-pos="5"] .powers-row{top:-4px;left:50%;transform:translateX(-50%)}
-  .seat[data-pos="2"] .powers-row,.seat[data-pos="3"] .powers-row,.seat[data-pos="4"] .powers-row{bottom:-12px;left:50%;transform:translateX(-50%)}
-  .seat .pwr-chip{background:rgba(124,77,255,.35);border:1px solid #a987ff;font-size:12px;line-height:1;padding:2px 4px;border-radius:99px;box-shadow:0 0 8px rgba(124,77,255,.4);z-index:5}
+  /* 能力 chip：垂直堆疊在座位邊上、不擋頭貼 */
+  .seat .powers-row{position:absolute;display:flex;flex-direction:column;gap:4px;z-index:5}
+  /* 我自己 / 中間下方 / 兩側下方：放右邊 */
+  .seat[data-pos="0"] .powers-row,
+  .seat[data-pos="1"] .powers-row,
+  .seat[data-pos="2"] .powers-row{right:-34px;top:0}
+  /* 上方 / 右側：放左邊 */
+  .seat[data-pos="3"] .powers-row,
+  .seat[data-pos="4"] .powers-row,
+  .seat[data-pos="5"] .powers-row{left:-34px;top:0}
+  .seat .pwr-chip{
+    background:linear-gradient(135deg,rgba(124,77,255,.85),rgba(169,135,255,.85));
+    border:1.5px solid #fff;font-size:14px;line-height:1;
+    width:26px;height:26px;display:flex;align-items:center;justify-content:center;
+    border-radius:50%;box-shadow:0 0 10px rgba(124,77,255,.6),0 2px 6px rgba(0,0,0,.5);
+  }
 
   /* 大型能力描述彈窗 */
   .power-desc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:170;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:eBigBgIn .3s ease}
@@ -565,12 +584,16 @@
       </div>
     </div>
 
-    <div class="actions">
-      <div class="turn-timer hidden">
-        <span class="lbl">你的回合</span>
+    <div class="turn-timer hidden" id="turnTimer">
+      <div class="tt-handle">⋮⋮ 你的回合</div>
+      <div class="tt-row">
+        <span class="lbl">思考</span>
         <div class="bar"><div class="fill" id="turnFill" style="width:100%"></div></div>
         <span class="sec" id="turnSec">—</span>
       </div>
+    </div>
+
+    <div class="actions">
       <div class="action-row">
         <div class="btns" id="actionBtns">
           <button id="btnFold" class="danger" disabled>棄牌</button>
@@ -1363,9 +1386,13 @@ function setMyTurn(t){
 }
 function clearMyTurn(){
   myValidActions = [];
+  myTurnDeadline = 0;
   $$('.btns button').forEach(b=> b.disabled = true);
   $('#turnFill').style.width = '100%';
   $('#turnSec').textContent = '—';
+  // 立刻隱藏 timer，不等下個 tick
+  const tt = $('#turnTimer');
+  if(tt) tt.classList.add('hidden');
 }
 
 function updateRaiseVisual(){
@@ -1431,9 +1458,9 @@ function sendAction(action){
 function startTurnTicker(){
   if(turnTickerId) clearInterval(turnTickerId);
   turnTickerId = setInterval(()=>{
-    const timer = document.querySelector('.turn-timer');
+    const timer = $('#turnTimer');
     if(!timer) return;
-    if(!myTurnDeadline){
+    if(!myTurnDeadline || myValidActions.length === 0){
       timer.classList.add('hidden');
       return;
     }
@@ -1449,6 +1476,54 @@ function startTurnTicker(){
   }, 100);
 }
 startTurnTicker();
+
+// 思考時間 panel 拖曳
+function makeTurnTimerDraggable(){
+  const el = $('#turnTimer');
+  const handle = el?.querySelector('.tt-handle');
+  if(!el || !handle) return;
+  let dragging = false, sx, sy, sl, st;
+  const onDown = e => {
+    dragging = true;
+    const ev = e.touches ? e.touches[0] : e;
+    sx = ev.clientX; sy = ev.clientY;
+    const rect = el.getBoundingClientRect();
+    sl = rect.left; st = rect.top;
+    el.style.left = sl+'px'; el.style.top = st+'px';
+    el.style.right = 'auto'; el.style.bottom = 'auto';
+    document.body.style.cursor = 'grabbing';
+    e.preventDefault();
+  };
+  const onMove = e => {
+    if(!dragging) return;
+    const ev = e.touches ? e.touches[0] : e;
+    const dx = ev.clientX - sx, dy = ev.clientY - sy;
+    let nl = sl + dx, nt = st + dy;
+    nl = Math.max(0, Math.min(window.innerWidth - el.offsetWidth, nl));
+    nt = Math.max(0, Math.min(window.innerHeight - el.offsetHeight, nt));
+    el.style.left = nl+'px'; el.style.top = nt+'px';
+  };
+  const onUp = () => {
+    if(!dragging) return;
+    dragging = false;
+    document.body.style.cursor = '';
+    try{ localStorage.setItem('turnTimerPos', JSON.stringify({left:el.style.left, top:el.style.top})); }catch(e){}
+  };
+  handle.addEventListener('mousedown', onDown);
+  handle.addEventListener('touchstart', onDown, {passive:false});
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('touchmove', onMove, {passive:false});
+  document.addEventListener('mouseup', onUp);
+  document.addEventListener('touchend', onUp);
+  try{
+    const saved = JSON.parse(localStorage.getItem('turnTimerPos')||'null');
+    if(saved && saved.left && saved.top){
+      el.style.left = saved.left; el.style.top = saved.top;
+      el.style.right = 'auto'; el.style.bottom = 'auto';
+    }
+  }catch(e){}
+}
+makeTurnTimerDraggable();
 
 // 加注 floating 拖曳
 function makeRaiseDraggable(){
@@ -1661,10 +1736,17 @@ function handleMessage(m){
     case 'blind-up':
       showBlindUp(m.level, m.sb, m.bb);
       break;
-    case 'blind-tick':
-      const s = Math.ceil(m.msLeft/1000);
-      $('#blindTimer').textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+    case 'blind-tick': {
+      if(m.pending){
+        $('#blindTimer').textContent = '本手結束';
+        $('#blindTimer').style.color = 'var(--red)';
+      } else {
+        const s = Math.ceil(m.msLeft/1000);
+        $('#blindTimer').textContent = `${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+        $('#blindTimer').style.color = '';
+      }
       break;
+    }
     case 'tournament-end':
       showEnd(m.rankings);
       break;

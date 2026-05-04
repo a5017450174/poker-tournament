@@ -160,6 +160,19 @@ class Room {
       this._endTournament();
       return;
     }
+
+    // 上一手結束：如果有待升盲，先升然後跳提醒，再開新手
+    const bu = this.game.applyPendingBlindUp();
+    if(bu){
+      this.broadcast({ type:'blind-up', level: bu.level, sb: bu.sb, bb: bu.bb });
+      // 跳完提醒後再開新手（讓 client 看 2.5 秒）
+      setTimeout(()=> this._startNewHand(), 2500);
+      return;
+    }
+    this._startNewHand();
+  }
+
+  _startNewHand(){
     const ok = this.game.startHand();
     if(!ok){
       this._endTournament();
@@ -353,12 +366,8 @@ class Room {
         clearInterval(this.blindTimer);
         return;
       }
-      const up = this.game.tickBlind();
-      if(up){
-        this.broadcast({ type:'blind-up', level: up.level, sb: up.sb, bb: up.bb });
-      }
-      // 也 broadcast 倒數（每 5 秒）
-      this.broadcast({ type:'blind-tick', msLeft: this.game.blindMsLeft() });
+      this.game.tickBlind();   // 只設 pending，不立刻升
+      this.broadcast({ type:'blind-tick', msLeft: this.game.blindMsLeft(), pending: !!this.game.pendingBlindUp });
     }, 5000);
   }
 
