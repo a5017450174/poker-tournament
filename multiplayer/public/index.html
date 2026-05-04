@@ -1545,6 +1545,7 @@ let turnTickerId = null;
 let myMode = 'create';
 let myTalent = null;            // 我選的角色
 let lastMyHandType = -1;        // 上次我的牌型（用來偵測升級）
+let _inShowdownPhase = false;   // 沒人輪到行動（auto-runout / 等開牌）期間，不秀牌力升級 toast
 let playerSeatMap = new Map();  // playerId -> seat DOM
 
 // ============ 頭貼選擇器 ============
@@ -1950,7 +1951,9 @@ function updateMyHand(state){
   if(me.talent === 'small_blind'){
     $('#myHandVal').innerHTML = (HAND_TYPES[t] || '?') + ` <span style="font-size:11px;color:var(--text-mute);letter-spacing:1px">（只用可見牌算）</span>`;
   }
-  if(lastMyHandType >= 0 && t > lastMyHandType){
+  // 牌力升級提示：只在「正常下注街」期間秀；auto-runout / 等開牌期間不彈
+  // 比牌時靠 showShowdownHandName 顯示贏家牌型即可
+  if(!_inShowdownPhase && lastMyHandType >= 0 && t > lastMyHandType){
     block.classList.remove('up');
     void block.offsetWidth;
     block.classList.add('up');
@@ -2520,9 +2523,21 @@ function handleMessage(m){
         }
       }
       break;
-    case 'game-state':
+    case 'game-state': {
       // 淘汰偵測：上一個 state 我還活著、這個 state 死了 → 跳結算彈窗
       checkMyEliminationTransition(lastState, m.state);
+      // 偵測 showdown / auto-runout phase（沒人輪到行動 + 至少翻牌已開）
+      const prevHandNum = lastState?.handNum;
+      const newHandNum = m.state?.handNum;
+      _inShowdownPhase = (
+        m.state.currentPlayerId == null &&
+        (m.state.community?.length || 0) >= 3
+      );
+      if(prevHandNum !== undefined && newHandNum !== prevHandNum){
+        // 新一手開始 → reset 牌力追蹤
+        _inShowdownPhase = false;
+        lastMyHandType = -1;
+      }
       lastState = m.state;
       if(m.state.mode){
         updateModeBanner(m.state.mode, m.state.level, '');
@@ -2534,6 +2549,7 @@ function handleMessage(m){
         clearMyTurn();
       }
       break;
+    }
     case 'action-result': {
       // 視覺特效：座位上彈出 RAISE/CALL/FOLD/ALLIN + 飛籌碼
       const seat = playerSeatMap.get(m.playerId);
@@ -2644,11 +2660,27 @@ function handleShowdown(r){
       }
     }
 
-    // 飛籌碼到贏家
+    // 飛籌碼到贏家：用 potBreakdown 算出每個玩家實際贏到的金額（修 side pot 動畫 bug）
+    // potBreakdown = [{label, amount, winnerIds}, ...]，每個 pot 各自有贏家
     if(r.winners && r.potWon > 0){
-      r.winners.forEach(wid=>{
+      const wonByPlayer = new Map();
+      if(Array.isArray(r.potBreakdown) && r.potBreakdown.length){
+        r.potBreakdown.forEach(pot => {
+          const each = Math.floor(pot.amount / pot.winnerIds.length);
+          const remainder = pot.amount - each * pot.winnerIds.length;
+          pot.winnerIds.forEach((wid, idx) => {
+            const add = each + (idx === 0 ? remainder : 0);
+            wonByPlayer.set(wid, (wonByPlayer.get(wid) || 0) + add);
+          });
+        });
+      } else {
+        // fallback：沒有 potBreakdown 就照舊平均分
+        const each = Math.floor(r.potWon / r.winners.length);
+        r.winners.forEach(wid => wonByPlayer.set(wid, each));
+      }
+      wonByPlayer.forEach((amt, wid) => {
         const seat = playerSeatMap.get(wid);
-        if(seat) flyPotToSeat(seat, Math.floor(r.potWon / r.winners.length));
+        if(seat && amt > 0) flyPotToSeat(seat, amt);
       });
     }
 

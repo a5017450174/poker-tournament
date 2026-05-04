@@ -772,13 +772,42 @@ class Game {
     return { ok:true };
   }
 
+  // 退回未跟注（uncalled）的 over-bet
+  // 例如：A all-in 3000、B all-in 1000 → A 多投的 2000 立刻退給 A，
+  // 不要等到 showdown 才靠 side pot 結算（讓玩家看到的 pot 金額永遠是「實際對打的金額」）
+  // 注意：拿全部玩家比較（含已棄牌、bet=0 的人），這樣「A 下注後其他人都棄牌或 all-in 0」
+  // 的場景也會正確退錢。
+  _refundUncalled(){
+    if(this.players.length < 2) return;
+    // 找這條街最高 bet 跟第二高 bet
+    const bets = this.players.map(p => p.bet || 0);
+    const sortedDesc = [...bets].sort((a, b) => b - a);
+    const top = sortedDesc[0];
+    const second = sortedDesc[1];
+    if(top <= second) return;          // 沒有 uncalled portion
+    const refund = top - second;
+    const over = this.players.find(p => (p.bet || 0) === top);
+    if(!over) return;
+    over.chips += refund;
+    over.bet -= refund;
+    over.totalBet = Math.max(0, (over.totalBet || 0) - refund);
+    this.pot = Math.max(0, this.pot - refund);
+    // 退回後若 chips > 0，那其實沒「真的全押」→ 清掉 allIn flag
+    if(over.chips > 0) over.allIn = false;
+    this.addLog(`↩ ${over.name} 退回未跟注 ${refund}`);
+  }
+
   // 推進回合：回傳 { phase: 'next-action'|'next-street'|'showdown'|'auto-runout', currentId? }
   advance(){
     const remaining = this.players.filter(p=> p.alive && !p.folded);
     if(remaining.length <= 1){
+      // 棄牌結束時也要退回 over-bet（萬一最後一個對手棄牌時你的牌大過全場）
+      this._refundUncalled();
       return { phase: 'showdown' };
     }
     if(this._roundComplete()){
+      // 一條街結束時退回 uncalled bet（讓 pot 顯示等於實際對打金額）
+      this._refundUncalled();
       // 修正重大 bug：若這條街完成後，能繼續下注的人 ≤ 1（其他人都 all-in），
       // 不該再進新街給單獨那位玩家亂加注 → 直接把剩下街發完、進 showdown
       const canStillBet = remaining.filter(p => !p.allIn);
