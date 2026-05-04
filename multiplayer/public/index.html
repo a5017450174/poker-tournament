@@ -36,6 +36,38 @@
   .lobby-sub{color:var(--text-dim);text-align:center;margin-bottom:32px;letter-spacing:2px}
 
   .lobby-card{background:var(--panel);border:1px solid var(--felt-edge);border-radius:12px;padding:32px 40px;width:min(520px,100%);box-shadow:0 8px 32px rgba(0,0,0,.5)}
+
+  /* 大廳：頭貼選擇器 */
+  .avatar-row{display:flex;align-items:center;gap:14px}
+  .avatar-trigger{
+    width:64px;height:64px;border-radius:50%;
+    background:var(--panel-2);border:2px solid var(--felt-edge);
+    font-size:38px;cursor:pointer;flex-shrink:0;
+    display:flex;align-items:center;justify-content:center;
+    transition:all .15s
+  }
+  .avatar-trigger:hover{border-color:var(--gold);box-shadow:0 0 16px rgba(231,181,59,.3)}
+  .avatar-trigger.open{border-color:var(--gold);background:rgba(231,181,59,.12)}
+  .avatar-hint{font-size:11px;color:var(--text-dim);letter-spacing:1px;line-height:1.5}
+  .avatar-hint strong{color:var(--gold);display:block;font-size:12px;letter-spacing:2px;margin-bottom:2px}
+  .avatar-grid{
+    display:grid;grid-template-columns:repeat(10,1fr);gap:4px;
+    background:var(--panel-2);border:1px solid var(--felt-edge);border-radius:8px;
+    padding:8px;margin-top:10px;max-height:0;overflow:hidden;opacity:0;
+    transition:max-height .25s ease, opacity .2s ease, padding .2s ease
+  }
+  .avatar-grid.open{max-height:280px;opacity:1;overflow-y:auto}
+  .avatar-cell{
+    aspect-ratio:1;display:flex;align-items:center;justify-content:center;
+    font-size:22px;border-radius:6px;cursor:pointer;
+    border:1.5px solid transparent;background:rgba(255,255,255,.02);
+    transition:all .12s;user-select:none
+  }
+  .avatar-cell:hover{background:rgba(231,181,59,.18);border-color:rgba(231,181,59,.6);transform:scale(1.1)}
+  .avatar-cell.selected{
+    background:linear-gradient(135deg,rgba(231,181,59,.4),rgba(231,181,59,.12));
+    border-color:var(--gold);box-shadow:0 0 12px rgba(231,181,59,.5)
+  }
   .form-row{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
   .form-row label{font-size:12px;color:var(--text-dim);letter-spacing:2px}
   .form-row input{font-size:15px;padding:10px 14px}
@@ -484,10 +516,10 @@
   .seat[data-pos="0"] .powers-row,
   .seat[data-pos="1"] .powers-row,
   .seat[data-pos="2"] .powers-row{right:-34px;top:0}
-  /* 上方 / 右側：放左邊 */
+  /* 上方 / 右側：放左邊（往內挪，避免被牌桌邊緣或螢幕切掉） */
   .seat[data-pos="3"] .powers-row,
   .seat[data-pos="4"] .powers-row,
-  .seat[data-pos="5"] .powers-row{left:-34px;top:0}
+  .seat[data-pos="5"] .powers-row{left:-50px;top:0}
   .seat .pwr-chip{
     background:linear-gradient(135deg,rgba(124,77,255,.85),rgba(169,135,255,.85));
     border:1.5px solid #fff;font-size:14px;line-height:1;
@@ -569,6 +601,12 @@
     .room-settings{grid-template-columns:1fr;gap:8px}
     .lobby-actions button{padding:14px;font-size:14px}
     .toggle-form button{flex:1;padding:10px 12px;font-size:13px}
+
+    /* avatar picker mobile */
+    .avatar-trigger{width:56px;height:56px;font-size:32px}
+    .avatar-grid{grid-template-columns:repeat(8,1fr)}
+    .avatar-grid.open{max-height:240px}
+    .avatar-cell{font-size:18px}
 
     /* Lobby 角色 / 變體 grid 改 3 / 2 欄 */
     .char-grid{grid-template-columns:repeat(3,1fr);max-height:none;gap:5px}
@@ -652,7 +690,7 @@
     .seat[data-pos="2"] .powers-row{right:-26px}
     .seat[data-pos="3"] .powers-row,
     .seat[data-pos="4"] .powers-row,
-    .seat[data-pos="5"] .powers-row{left:-26px}
+    .seat[data-pos="5"] .powers-row{left:-44px}
     .seat .pwr-chip{width:22px;height:22px;font-size:12px}
 
     /* === 動作列：底部 sticky 全寬 === */
@@ -806,6 +844,18 @@
     <div class="form-row">
       <label>你的名字</label>
       <input type="text" id="playerName" placeholder="輸入暱稱（最多 12 字）" maxlength="12">
+    </div>
+
+    <div class="form-row">
+      <label>頭貼</label>
+      <div class="avatar-row">
+        <div class="avatar-trigger" id="avatarTrigger" title="點開選頭貼">🧑</div>
+        <div class="avatar-hint">
+          <strong>點開選頭貼</strong>
+          60 個 emoji 任你選 · AI 自動是機器人
+        </div>
+      </div>
+      <div class="avatar-grid" id="avatarGrid"></div>
     </div>
 
     <!-- 建房：設定房間 -->
@@ -1052,6 +1102,20 @@ const MODES = [
 ];
 const HAND_TYPES = ['高牌','一對','兩對','三條','順子','同花','葫蘆','鐵支','同花順','皇家同花順'];
 const RANK_VAL = {'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'T':10,'J':11,'Q':12,'K':13,'A':14};
+
+// ============ 60 個頭貼 emoji（人物 / 動物 / 食物 / 物品） ============
+const EMOJI_AVATARS = [
+  // 人物 / 角色 (15)
+  '🧑','👨','👩','🧔','👱','👴','👵','🤴','👸','🥷','🦹','🤡','👽','🦸','🧙',
+  // 動物 (18)
+  '🐶','🐱','🦊','🐼','🐯','🦁','🐨','🐸','🐵','🐧','🦄','🐲','🦉','🦅','🐺','🦝','🐢','🐙',
+  // 食物 / 飲料 (15)
+  '🍕','🍔','🌮','🍣','🍜','🍩','🍦','🍓','🍉','🥑','🌶️','🍺','🍫','🍱','🍰',
+  // 物品 / 符號 (12)
+  '⚡','🔥','💎','🌟','🎯','🎮','🎸','🚀','👑','🌈','💀','🌵',
+];
+// AI 用機器人系列 emoji，輪流分配
+const AI_AVATARS = ['🤖','👾','🦾','⚙️','📟'];
 
 // ============ 工具 ============
 const $ = s => document.querySelector(s);
@@ -1389,6 +1453,7 @@ function updateModeBanner(mode, level, detail){
 let ws = null;
 let myId = null;
 let myName = '玩家';
+let myAvatar = localStorage.getItem('myAvatar') || '🧑';   // 我選的頭貼
 let roomCode = null;
 let lobby = null;
 let lastState = null;
@@ -1398,6 +1463,36 @@ let myMode = 'create';
 let myTalent = null;            // 我選的角色
 let lastMyHandType = -1;        // 上次我的牌型（用來偵測升級）
 let playerSeatMap = new Map();  // playerId -> seat DOM
+
+// ============ 頭貼選擇器 ============
+(function setupAvatarPicker(){
+  const trigger = document.getElementById('avatarTrigger');
+  const grid = document.getElementById('avatarGrid');
+  if(!trigger || !grid) return;
+  trigger.textContent = myAvatar;
+  // 初始化 grid 60 格
+  grid.innerHTML = EMOJI_AVATARS.map(e =>
+    `<div class="avatar-cell ${e===myAvatar?'selected':''}" data-emoji="${e}">${e}</div>`
+  ).join('');
+  trigger.addEventListener('click', ()=>{
+    grid.classList.toggle('open');
+    trigger.classList.toggle('open');
+  });
+  grid.addEventListener('click', (e)=>{
+    const cell = e.target.closest('.avatar-cell');
+    if(!cell) return;
+    myAvatar = cell.dataset.emoji;
+    localStorage.setItem('myAvatar', myAvatar);
+    trigger.textContent = myAvatar;
+    grid.querySelectorAll('.avatar-cell').forEach(c =>
+      c.classList.toggle('selected', c.dataset.emoji === myAvatar));
+    // 選完自動關閉
+    setTimeout(()=>{
+      grid.classList.remove('open');
+      trigger.classList.remove('open');
+    }, 200);
+  });
+})();
 
 // ============ Lobby UI ============
 $('#modeCreate').addEventListener('click', ()=>{
@@ -1428,11 +1523,11 @@ $('#btnGo').addEventListener('click', ()=>{
     const aiCount = +$('#aiCount').value || 0;
     const baseTurnSec = +$('#baseTurnSec').value || 20;
     const blindMs = (+$('#blindSec').value || 120) * 1000;
-    sendWS({ type:'create-room', name, settings:{ aiCount, baseTurnSec, blindMs } });
+    sendWS({ type:'create-room', name, avatar: myAvatar, settings:{ aiCount, baseTurnSec, blindMs } });
   } else {
     const code = ($('#roomCode').value || '').trim().toUpperCase();
     if(!code){ toast('請輸入邀請碼'); return; }
-    sendWS({ type:'join-room', name, code });
+    sendWS({ type:'join-room', name, avatar: myAvatar, code });
   }
 });
 
@@ -1461,7 +1556,8 @@ function renderWaitRoom(){
     const isMe = p.id === myId;
     const ch = p.talent ? CHAR_BY_ID[p.talent] : null;
     const charBadge = ch ? `<span title="${ch.name} — ${ch.desc}" style="font-size:18px;background:rgba(231,181,59,.18);border:1px solid var(--gold);padding:2px 8px;border-radius:99px">${ch.icon} ${ch.name}</span>` : `<span style="font-size:11px;color:var(--text-mute);letter-spacing:1px">未選角</span>`;
-    row.innerHTML = `<span class="ico">${p.isAI?'🤖':'🧑'}</span><span class="name">${p.name}</span>${charBadge}${isMe?'<span class="you">你</span>':''}`;
+    const ico = p.avatar || (p.isAI ? '🤖' : '🧑');
+    row.innerHTML = `<span class="ico">${ico}</span><span class="name">${p.name}</span>${charBadge}${isMe?'<span class="you">你</span>':''}`;
     list.appendChild(row);
   });
   isHost = lobby.hostId === myId;
@@ -1631,8 +1727,11 @@ function renderTable(state){
     seat.classList.toggle('active', state.currentPlayerId === p.id && state.street !== 'showdown');
     seat.classList.toggle('dealer', state.dealerPos === state.players.indexOf(p));
     seat.classList.toggle('you', p.id === myId);
-    seat.querySelector('.name').textContent = p.name + (p.isAI?' 🤖':'');
+    seat.querySelector('.name').textContent = p.name;
     seat.querySelector('.chips').textContent = fmt(p.chips);
+    // 頭貼：用玩家自己選的 emoji；server 沒給就 fallback
+    const avatarEl = seat.querySelector('.avatar');
+    if(avatarEl) avatarEl.textContent = p.avatar || (p.isAI ? '🤖' : '🧑');
 
     const hole = seat.querySelector('.hole');
     hole.innerHTML = '';

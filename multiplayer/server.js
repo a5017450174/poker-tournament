@@ -73,22 +73,25 @@ class Room {
     this.talents = new Map();    // playerId -> talentId（lobby 階段，AI 也用）
   }
 
-  addHumanPlayer(playerId, name, ws){
+  addHumanPlayer(playerId, name, avatar, ws){
     if(this.phase !== 'lobby'){
       // 遊戲中不允許新加（之後可加觀戰）
       return false;
     }
     if(this.game.players.length >= 6) return false;
-    this.game.addPlayer({ id: playerId, name, isAI: false });
+    this.game.addPlayer({ id: playerId, name, avatar, isAI: false });
     this.humanIds.set(playerId, ws);
     return true;
   }
 
   fillAI(){
     const aiCount = Math.max(0, Math.min(6 - this.game.players.length, this.settings.aiCount));
+    // AI 自動分配 robot 系列 emoji，依 index 輪替
+    const AI_AVATARS = ['🤖','👾','🦾','⚙️','📟'];
     for(let i=0;i<aiCount;i++){
       const aiId = 'AI' + (i+1) + '_' + Math.random().toString(36).slice(2,5);
-      this.game.addPlayer({ id: aiId, name: `CPU ${i+1}`, isAI: true });
+      const aiAvatar = AI_AVATARS[i % AI_AVATARS.length];
+      this.game.addPlayer({ id: aiId, name: `CPU ${i+1}`, avatar: aiAvatar, isAI: true });
     }
   }
 
@@ -456,6 +459,7 @@ class Room {
       phase: this.phase,
       players: this.game.players.map(p=>({
         id:p.id, name:p.name, isAI:p.isAI,
+        avatar: p.avatar || (p.isAI ? '🤖' : '🧑'),
         talent: this.talents.get(p.id) || null,
       })),
       settings: this.settings,
@@ -491,7 +495,7 @@ function handleMessage(ws, msg){
       const code = generateCode();
       const playerId = nextPlayerId();
       const room = new Room(code, playerId, msg.name || '玩家', msg.settings);
-      const ok = room.addHumanPlayer(playerId, msg.name || '玩家', ws);
+      const ok = room.addHumanPlayer(playerId, msg.name || '玩家', msg.avatar || '🧑', ws);
       if(!ok){ send(ws, { type:'error', msg:'create failed' }); return; }
       rooms.set(code, room);
       clients.set(ws, { roomCode: code, playerId, name: msg.name });
@@ -510,7 +514,7 @@ function handleMessage(ws, msg){
         return;
       }
       const playerId = nextPlayerId();
-      const ok = room.addHumanPlayer(playerId, msg.name || '玩家', ws);
+      const ok = room.addHumanPlayer(playerId, msg.name || '玩家', msg.avatar || '🧑', ws);
       if(!ok){ send(ws, { type:'error', msg:'room full' }); return; }
       clients.set(ws, { roomCode: room.code, playerId, name: msg.name });
       send(ws, { type:'room-joined', code: room.code, playerId, lobby: room.publicLobbyInfo() });

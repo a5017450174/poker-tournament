@@ -269,6 +269,7 @@ class Game {
       id: p.id,
       name: p.name,
       isAI: !!p.isAI,
+      avatar: p.avatar || (p.isAI ? '🤖' : '🧑'),  // 玩家 emoji 頭貼
       chips: p.chips || 10000,
       hole: [],
       alive: true,
@@ -1195,6 +1196,7 @@ class Game {
           id: p.id,
           name: p.name,
           isAI: p.isAI,
+          avatar: p.avatar || (p.isAI ? '🤖' : '🧑'),
           chips: p.chips,
           bet: p.bet,
           totalBet: p.totalBet,
