@@ -234,6 +234,201 @@
   ::-webkit-scrollbar{width:8px}
   ::-webkit-scrollbar-track{background:transparent}
   ::-webkit-scrollbar-thumb{background:var(--felt-edge);border-radius:4px}
+
+  /* ============ 視覺特效 ============ */
+  /* 效果 toast (角色觸發) */
+  .effect-toast-stack{position:fixed;top:88px;left:50%;transform:translateX(-50%);z-index:80;display:flex;flex-direction:column;gap:10px;align-items:center;pointer-events:none;width:max-content;max-width:92%}
+  .effect-toast{background:linear-gradient(135deg,var(--gold) 0%,#fcc847 100%);color:#000;padding:13px 26px;border-radius:12px;font-weight:900;font-size:18px;letter-spacing:2px;box-shadow:0 10px 32px rgba(231,181,59,.5),0 6px 16px rgba(0,0,0,.6);white-space:nowrap;display:flex;align-items:center;gap:14px;animation:eToastIn .35s ease, eToastOut .4s ease 3.6s forwards}
+  .effect-toast .et-name{display:inline-block;background:rgba(0,0,0,.3);padding:5px 14px;border-radius:6px;font-size:14px;letter-spacing:4px;font-weight:800}
+  .effect-toast .et-amt{color:#7c1e1e;font-size:22px;font-weight:900;margin-left:4px}
+  .effect-toast.red{background:linear-gradient(135deg,#c93030,#e23b3b);color:#fff}
+  .effect-toast.red .et-name{background:rgba(255,255,255,.2)}
+  .effect-toast.red .et-amt{color:#fff}
+  .effect-toast.purple{background:linear-gradient(135deg,#7c4dff,#a987ff);color:#fff}
+  .effect-toast.purple .et-name{background:rgba(255,255,255,.18)}
+  .effect-toast.purple .et-amt{color:#fff;text-shadow:0 0 12px #fff}
+  @keyframes eToastIn{from{opacity:0;transform:translateY(-20px) scale(.8)}to{opacity:1;transform:translateY(0) scale(1)}}
+  @keyframes eToastOut{to{opacity:0;transform:translateY(-20px) scale(.95)}}
+
+  /* 升盲大彈窗 */
+  .blind-up-overlay{position:fixed;top:50%;left:50%;z-index:180;pointer-events:none;animation:buPop 2.9s ease forwards}
+  .blind-up-card{background:linear-gradient(135deg,#1a2530,#0a0d10);border:3px solid var(--gold);border-radius:18px;padding:32px 72px;text-align:center;box-shadow:0 0 100px rgba(231,181,59,.6),inset 0 0 40px rgba(231,181,59,.06)}
+  .bu-stage{font-size:13px;letter-spacing:8px;color:var(--text-mute);margin-bottom:4px;font-weight:700}
+  .bu-level{font-size:54px;font-weight:900;color:var(--gold);letter-spacing:10px;margin-bottom:6px;text-shadow:0 0 40px var(--gold),0 4px 12px rgba(0,0,0,.8)}
+  .bu-ratio{font-size:18px;color:#fcc847;letter-spacing:6px;margin-bottom:20px;font-weight:800}
+  .bu-ratio .arrow{color:var(--green);margin-right:8px;text-shadow:0 0 12px var(--green)}
+  .bu-blinds{font-size:42px;font-weight:900;color:#fff;font-variant-numeric:tabular-nums;letter-spacing:4px;margin-bottom:14px;text-shadow:0 4px 12px rgba(0,0,0,.8)}
+  .bu-stack{font-size:15px;color:var(--gold);letter-spacing:3px;padding:8px 22px;background:rgba(0,0,0,.5);border-radius:8px;display:inline-block;border:1px solid var(--felt-edge);font-weight:700}
+  .bu-stack strong{font-size:24px;font-weight:900;margin:0 4px;font-variant-numeric:tabular-nums}
+  @keyframes buPop{
+    0%{transform:translate(-50%,-50%) scale(0) rotate(-12deg);opacity:0}
+    8%{transform:translate(-50%,-50%) scale(1.18) rotate(2deg);opacity:1}
+    16%{transform:translate(-50%,-50%) scale(1) rotate(0)}
+    85%{transform:translate(-50%,-50%) scale(1);opacity:1}
+    100%{transform:translate(-50%,-50%) scale(.92);opacity:0}
+  }
+
+  /* 比牌大字牌型名 */
+  .showdown-handname{
+    position:fixed;top:30%;left:50%;transform:translateX(-50%) scale(0);
+    font-size:78px;font-weight:900;color:var(--gold);
+    text-shadow:0 0 50px var(--gold),0 0 100px rgba(231,181,59,.7),0 6px 16px rgba(0,0,0,.95);
+    letter-spacing:14px;z-index:30;pointer-events:none;
+    background:rgba(0,0,0,.6);padding:20px 60px;border-radius:18px;
+    border:3px solid var(--gold);box-shadow:0 0 80px rgba(231,181,59,.5);
+    animation:sdNamePop 3s ease forwards;white-space:nowrap;
+  }
+  @keyframes sdNamePop{
+    0%{transform:translateX(-50%) scale(0) rotate(-12deg);opacity:0}
+    8%{transform:translateX(-50%) scale(1.4) rotate(4deg);opacity:1}
+    18%{transform:translateX(-50%) scale(1.05) rotate(0)}
+    85%{transform:translateX(-50%) scale(1) translateY(-8px);opacity:1}
+    100%{transform:translateX(-50%) scale(.9) translateY(-30px);opacity:0}
+  }
+
+  /* 牌型升級 toast */
+  .rank-up-toast{position:fixed;top:35%;left:50%;font-weight:900;color:#fcc847;text-shadow:0 0 60px var(--gold),0 4px 16px rgba(0,0,0,.8);z-index:150;pointer-events:none;letter-spacing:10px;font-size:60px;animation:rankUpAnim 2.4s ease forwards}
+  .rank-up-toast .arrow{display:block;font-size:40px;margin-bottom:6px;color:var(--green);text-shadow:0 0 30px var(--green)}
+  .rank-up-toast .from{display:block;font-size:18px;color:var(--text-dim);letter-spacing:6px;margin-bottom:6px;text-shadow:none;font-weight:600}
+  @keyframes rankUpAnim{
+    0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-15deg)}
+    15%{opacity:1;transform:translate(-50%,-50%) scale(1.3) rotate(0)}
+    30%{transform:translate(-50%,-50%) scale(1)}
+    75%{opacity:1;transform:translate(-50%,-50%) scale(1.05)}
+    100%{opacity:0;transform:translate(-50%,-90%) scale(.95)}
+  }
+
+  /* 飛籌碼到底池 */
+  .chip-fly{position:fixed;width:32px;height:32px;border-radius:50%;background:radial-gradient(circle at 35% 30%,#fff 0%,var(--gold) 35%,var(--gold-2) 100%);border:2px dashed rgba(255,255,255,.7);box-shadow:0 4px 12px rgba(0,0,0,.6),inset 0 0 8px rgba(0,0,0,.3);z-index:50;pointer-events:none;transition:all .65s cubic-bezier(.5,.05,.3,1)}
+
+  /* 動作彈出文字（座位上方） */
+  .action-pop{position:absolute;top:-32px;left:50%;transform:translateX(-50%) scale(0);font-weight:900;letter-spacing:6px;font-size:18px;z-index:6;pointer-events:none;white-space:nowrap;animation:actionPopAnim 1.6s ease forwards}
+  .action-pop.raise{color:var(--gold);text-shadow:0 0 16px var(--gold),0 2px 8px rgba(0,0,0,.8)}
+  .action-pop.fold{color:#888;text-shadow:0 2px 8px rgba(0,0,0,.8)}
+  .action-pop.call,.action-pop.check{color:var(--green);text-shadow:0 0 12px var(--green),0 2px 8px rgba(0,0,0,.8)}
+  .action-pop.allin{color:#fff;font-size:28px;letter-spacing:10px;text-shadow:0 0 24px var(--red),0 0 60px var(--red),0 0 100px var(--gold);animation:actionPopAllin 2.2s ease forwards}
+  @keyframes actionPopAnim{
+    0%{transform:translateX(-50%) scale(0) rotate(-8deg);opacity:0}
+    20%{transform:translateX(-50%) scale(1.2) rotate(0);opacity:1}
+    40%{transform:translateX(-50%) scale(1)}
+    80%{transform:translateX(-50%) scale(1) translateY(-12px);opacity:1}
+    100%{transform:translateX(-50%) scale(.85) translateY(-22px);opacity:0}
+  }
+  @keyframes actionPopAllin{
+    0%{transform:translateX(-50%) scale(0) rotate(-12deg);opacity:0}
+    15%{transform:translateX(-50%) scale(1.6) rotate(2deg);opacity:1}
+    30%{transform:translateX(-50%) scale(1.1) rotate(0)}
+    50%{transform:translateX(-50%) scale(1.25);filter:hue-rotate(15deg)}
+    80%{transform:translateX(-50%) scale(1.1) translateY(-8px);opacity:1}
+    100%{transform:translateX(-50%) scale(.9) translateY(-24px);opacity:0}
+  }
+
+  /* WIN 徽章 */
+  .win-badge{position:absolute;top:-22px;left:50%;transform:translateX(-50%);padding:5px 16px;background:linear-gradient(135deg,var(--gold),#fcc847);color:#000;border-radius:6px;font-weight:900;font-size:13px;letter-spacing:5px;z-index:6;box-shadow:0 0 24px var(--gold),0 4px 12px rgba(0,0,0,.5);animation:winBadgePop .4s ease,winBadgeFloat .8s ease .4s infinite alternate}
+  @keyframes winBadgePop{from{transform:translateX(-50%) scale(0)}to{transform:translateX(-50%) scale(1)}}
+  @keyframes winBadgeFloat{to{transform:translateX(-50%) translateY(-4px) scale(1.05)}}
+
+  /* showdown 強化亮 winner 牌 */
+  .card.showdown-matched{
+    box-shadow:0 0 0 5px var(--gold),0 0 40px var(--gold),0 0 80px rgba(231,181,59,.6)!important;
+    z-index:8!important;position:relative;
+    animation:showdownFlash .55s ease-in-out infinite alternate!important;
+  }
+  @keyframes showdownFlash{
+    from{box-shadow:0 0 0 5px var(--gold),0 0 40px var(--gold),0 0 80px rgba(231,181,59,.6)!important;transform:translateY(-8px) scale(1.06)}
+    to{box-shadow:0 0 0 7px #fcc847,0 0 60px #fff8d6,0 0 120px var(--gold)!important;transform:translateY(-12px) scale(1.12)}
+  }
+
+  /* 角色 chip（座位上小標） */
+  .seat .talent-chip{
+    position:absolute;top:-8px;right:-6px;background:rgba(0,0,0,.85);border:1px solid var(--gold);
+    padding:2px 6px;border-radius:99px;font-size:14px;line-height:1;z-index:5;
+    box-shadow:0 0 12px rgba(231,181,59,.4);
+  }
+  .seat .talent-chip.you{background:linear-gradient(135deg,var(--gold),#fcc847);}
+
+  /* 大廳：角色選擇 grid */
+  .char-section{margin-top:18px;padding-top:18px;border-top:1px solid var(--felt-edge)}
+  .char-section .lbl-h{font-size:12px;color:var(--text-dim);letter-spacing:3px;margin-bottom:8px;text-align:center}
+  .char-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;max-height:240px;overflow-y:auto;padding:4px}
+  .char-card{border:1.5px solid var(--felt-edge);background:var(--panel-2);border-radius:8px;padding:8px 4px;text-align:center;cursor:pointer;transition:all .15s;position:relative}
+  .char-card:hover{border-color:var(--gold);transform:translateY(-2px)}
+  .char-card.selected{border-color:var(--gold);background:linear-gradient(135deg,rgba(231,181,59,.25),rgba(231,181,59,.06));box-shadow:0 0 14px rgba(231,181,59,.4)}
+  .char-card.taken{opacity:.32;cursor:not-allowed;border-color:var(--felt-edge)}
+  .char-card.taken:hover{transform:none}
+  .char-card .ico{font-size:26px;margin-bottom:3px;line-height:1}
+  .char-card .nm{font-size:11px;font-weight:700;color:var(--text);letter-spacing:1px}
+  .char-card .by{position:absolute;top:2px;right:4px;font-size:8px;color:var(--gold);font-weight:900;letter-spacing:.5px}
+  .char-tip{margin-top:8px;padding:8px 12px;background:rgba(0,0,0,.4);border-radius:6px;font-size:12px;color:var(--text-dim);line-height:1.5;min-height:40px}
+  .char-tip strong{color:var(--gold);font-size:13px;letter-spacing:2px}
+
+  /* 能力選擇 modal */
+  .power-pick-overlay{position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;display:flex;align-items:center;justify-content:center;padding:20px}
+  .power-pick-card{background:var(--panel);border:3px solid var(--gold);border-radius:18px;padding:28px 36px;width:min(820px,100%);box-shadow:0 0 100px rgba(231,181,59,.4)}
+  .pp-title{font-size:24px;font-weight:900;color:var(--gold);text-align:center;letter-spacing:6px;margin-bottom:6px}
+  .pp-sub{font-size:13px;color:var(--text-dim);text-align:center;letter-spacing:2px;margin-bottom:18px}
+  .pp-cd{color:var(--gold);font-weight:900;font-size:18px}
+  .power-pick-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+  .power-card{border:2px solid var(--felt-edge);border-radius:14px;padding:18px 14px;text-align:center;cursor:pointer;background:linear-gradient(135deg,rgba(231,181,59,.04),rgba(0,0,0,.4));transition:all .2s}
+  .power-card:hover{border-color:var(--gold);transform:translateY(-4px);box-shadow:0 0 30px rgba(231,181,59,.4),0 8px 16px rgba(0,0,0,.5)}
+  .pc-ico{font-size:46px;margin-bottom:8px;line-height:1}
+  .pc-name{font-size:18px;font-weight:900;color:var(--gold);letter-spacing:3px;margin-bottom:8px}
+  .pc-desc{font-size:13px;color:var(--text-dim);line-height:1.5}
+
+  /* 別人在選能力時的 banner */
+  .pick-pending-banner{position:fixed;top:80px;left:50%;transform:translateX(-50%);background:rgba(124,77,255,.95);color:#fff;padding:12px 26px;border-radius:99px;font-size:15px;font-weight:700;letter-spacing:2px;z-index:140;box-shadow:0 8px 28px rgba(124,77,255,.5);display:flex;align-items:center;gap:12px}
+  .pick-pending-banner .cd{font-weight:900;font-size:17px;color:#fcc847;font-variant-numeric:tabular-nums}
+
+  /* 能力 chip 在座位旁 */
+  .seat .powers-row{position:absolute;display:flex;gap:2px;flex-wrap:wrap;max-width:140px;justify-content:center}
+  .seat[data-pos="0"] .powers-row,.seat[data-pos="1"] .powers-row,.seat[data-pos="5"] .powers-row{top:-4px;left:50%;transform:translateX(-50%)}
+  .seat[data-pos="2"] .powers-row,.seat[data-pos="3"] .powers-row,.seat[data-pos="4"] .powers-row{bottom:-12px;left:50%;transform:translateX(-50%)}
+  .seat .pwr-chip{background:rgba(124,77,255,.35);border:1px solid #a987ff;font-size:12px;line-height:1;padding:2px 4px;border-radius:99px;box-shadow:0 0 8px rgba(124,77,255,.4);z-index:5}
+
+  /* 大型能力描述彈窗 */
+  .power-desc-overlay{position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:170;display:flex;align-items:center;justify-content:center;cursor:pointer;animation:eBigBgIn .3s ease}
+  .power-desc-card{padding:32px 56px;background:linear-gradient(135deg,#1a2530,#0a0d10);border:3px solid var(--gold);border-radius:18px;text-align:center;max-width:560px;animation:eBigPop .4s ease}
+  .pdc-ico{font-size:64px;margin-bottom:8px;line-height:1}
+  .pdc-name{font-size:30px;font-weight:900;color:var(--gold);letter-spacing:6px;margin-bottom:14px;text-shadow:0 0 30px var(--gold)}
+  .pdc-target{font-size:17px;color:#fcc847;font-weight:700;margin-bottom:14px}
+  .pdc-target strong{color:#fff;font-size:20px;margin:0 6px}
+  .pdc-desc{font-size:15px;color:var(--text-dim);line-height:1.7;margin-bottom:14px}
+  .pdc-amt{font-size:32px;font-weight:900;color:var(--gold);letter-spacing:4px}
+  .pdc-tap{font-size:11px;color:var(--text-mute);letter-spacing:2px;margin-top:14px}
+  @keyframes eBigBgIn{from{opacity:0}to{opacity:1}}
+  @keyframes eBigPop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+
+  /* mode banner（遊戲畫面頂部） */
+  .mode-banner{background:linear-gradient(90deg,rgba(231,181,59,.04),rgba(231,181,59,.18) 50%,rgba(231,181,59,.04));border-bottom:1px solid var(--felt-edge);padding:8px 18px;display:flex;align-items:center;justify-content:center;gap:14px;font-size:13px;flex-shrink:0;color:var(--text)}
+  .mode-banner .ico{font-size:18px}
+  .mode-banner .nm{font-weight:800;color:var(--gold);letter-spacing:3px;font-size:15px}
+  .mode-banner .lv{padding:2px 8px;background:var(--gold);color:#000;font-size:11px;font-weight:800;border-radius:4px;letter-spacing:2px}
+  .mode-banner .ds{color:var(--text-dim);font-size:12px}
+
+  /* 大廳 mode 選擇 */
+  .mode-section{margin-top:18px;padding-top:18px;border-top:1px solid var(--felt-edge)}
+  .mode-section .lbl-h{font-size:12px;color:var(--text-dim);letter-spacing:3px;margin-bottom:8px;text-align:center}
+  .mode-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-bottom:8px}
+  .mode-card{border:1.5px solid var(--felt-edge);background:var(--panel-2);border-radius:6px;padding:8px 4px;text-align:center;cursor:pointer;transition:all .15s}
+  .mode-card:hover{border-color:var(--gold)}
+  .mode-card.selected{border-color:var(--gold);background:linear-gradient(135deg,rgba(231,181,59,.25),rgba(231,181,59,.06))}
+  .mode-card .nm{font-size:11px;font-weight:700;letter-spacing:1px}
+  .level-row{display:flex;gap:6px;justify-content:center;margin-bottom:8px}
+  .level-row button{padding:5px 14px;background:var(--panel-2);border:1px solid var(--felt-edge);color:var(--text-dim);border-radius:6px;font-size:12px;letter-spacing:2px}
+  .level-row button.active{background:var(--gold);color:#000;border-color:var(--gold)}
+  .mode-detail-tip{padding:8px 12px;background:rgba(0,0,0,.4);border-radius:6px;font-size:12px;color:var(--text-dim);line-height:1.5;min-height:36px}
+
+  /* 我的牌型呼吸燈（側欄） */
+  .my-hand-block{padding:14px 16px;border-bottom:1px solid var(--felt-edge);background:linear-gradient(180deg,rgba(231,181,59,.08),transparent)}
+  .my-hand-block .lbl{font-size:10px;color:var(--text-mute);letter-spacing:2px;margin-bottom:4px}
+  .my-hand-block .val{font-size:22px;font-weight:900;color:var(--gold);letter-spacing:3px;animation:myHandBreathe 1.6s ease infinite alternate}
+  @keyframes myHandBreathe{to{text-shadow:0 0 20px var(--gold)}}
+  .my-hand-block.up .val{animation:myHandUp 1.6s ease}
+  @keyframes myHandUp{
+    0%{transform:scale(1)} 15%{transform:scale(1.5);color:#fcc847}
+    35%{transform:scale(1.2) rotate(-2deg)} 55%{transform:scale(1.3) rotate(2deg)}
+    100%{transform:scale(1)}
+  }
 </style>
 </head>
 <body>
@@ -295,6 +490,20 @@
     <button class="copy-btn" id="copyCodeBtn">複製邀請連結</button>
     <div class="wait-hint">告訴朋友這 5 個字，他們點「加入房間」輸入就能進來</div>
     <div class="wait-players" id="waitPlayers"></div>
+
+    <div class="mode-section" id="modeSection">
+      <div class="lbl-h">— 變體玩法（房主決定）—</div>
+      <div class="mode-grid" id="modeGrid"></div>
+      <div class="level-row" id="levelRow"></div>
+      <div class="mode-detail-tip" id="modeDetailTip">經典模式</div>
+    </div>
+
+    <div class="char-section">
+      <div class="lbl-h">— 選你的角色天賦（不選會隨機分配）—</div>
+      <div class="char-grid" id="charGrid"></div>
+      <div class="char-tip" id="charTip">點一個角色看效果說明</div>
+    </div>
+
     <div class="wait-actions">
       <button class="leave" id="leaveBtn">離開</button>
       <button class="start hidden" id="startBtn">開始遊戲</button>
@@ -306,6 +515,12 @@
 <!-- ============ GAME SCREEN ============ -->
 <div id="game" class="screen hidden">
   <div class="main">
+    <div class="mode-banner hidden" id="modeBanner">
+      <span class="ico">🎲</span>
+      <span class="nm" id="modeName">經典傳奇</span>
+      <span class="lv" id="modeLv">LV 1</span>
+      <span class="ds" id="modeDesc">標準德州撲克</span>
+    </div>
     <div class="topbar">
       <div class="info-block">
         <div class="lbl">手牌</div>
@@ -380,6 +595,10 @@
   </div>
 
   <div class="sidebar">
+    <div class="my-hand-block" id="myHandBlock" style="display:none">
+      <div class="lbl">你目前的牌型</div>
+      <div class="val" id="myHandVal">—</div>
+    </div>
     <h4>籌碼排行</h4>
     <div class="panel-block">
       <div class="stack-ranking" id="stackRanking"></div>
@@ -402,11 +621,95 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ============ 常數 ============
+const CHARACTERS = [
+  { id:'soft_target', name:'專挑軟柿子', icon:'🍅', desc:'比牌獲勝時，從全場籌碼最少的對手額外多收 1 個小盲。' },
+  { id:'gold_kick',   name:'黃金右腳', icon:'🦵', desc:'比牌時若你輸在踢腳，所有對手付你 3 個小盲補償。' },
+  { id:'rich_richer', name:'強者恆強', icon:'👑', desc:'若你是全場籌碼最多，比牌獲勝後向每位輸家額外索取本手投入底池的 5%。' },
+  { id:'rising_tide', name:'水漲船高', icon:'🌊', desc:'你加注後，跟注的對手每人額外付 1 個小盲到底池。' },
+  { id:'imposing',    name:'氣勢凌人', icon:'💢', desc:'你加注時可以少付 1 個小盲。' },
+  { id:'bully',       name:'惡霸', icon:'👹', desc:'翻牌前你加注後，若所有對手都棄牌，每位對手再付你 0.5 個小盲。' },
+  { id:'street_king', name:'街頭小霸王', icon:'🥊', desc:'比牌獲勝時，每位輸家額外付你 2 個大盲。' },
+  { id:'precision',   name:'精準出擊', icon:'🎯', desc:'小盲位或大盲位棄牌可拿回 1 個小盲。' },
+  { id:'big_blind',   name:'大盲', icon:'🙈', desc:'你看不到自己底牌（全黑）。比牌獲勝時，每位輸家額外付他們本手投入底池的 100%。' },
+  { id:'small_blind', name:'小盲', icon:'🙉', desc:'你只看得到一張底牌。比牌獲勝時，每位輸家額外付他們本手投入底池的 50%。' },
+  { id:'advance',     name:'預支人生', icon:'💳', desc:'All-in 輸掉後，可向籌碼最多的對手借 1 個大盲繼續。' },
+  { id:'east_money',  name:'東家錢', icon:'💰', desc:'每局開始時 50% 機率向上一局的贏家抽走 1 個小盲。' },
+];
+const CHAR_BY_ID = Object.fromEntries(CHARACTERS.map(c=>[c.id,c]));
+const POWER_UPS = [
+  { id:'arrogant',    name:'不可一世', icon:'🌟', desc:'用「高牌」贏下比牌時，每位輸家額外付你 1 個大盲。' },
+  { id:'p_rule27',    name:'27 法則', icon:'✌️', desc:'底牌剛好 2&7 並贏下牌局時，全場每位對手付你 2 個大盲。' },
+  { id:'three_kind',  name:'三條', icon:'3️⃣', desc:'用「三條」贏下比牌時，每位比牌的輸家額外付你 4 個大盲。' },
+  { id:'pair_back',   name:'天生一對', icon:'👯', desc:'比牌輸了，但手牌是對子的話，可以拿回 2 個大盲。' },
+  { id:'two_pair',    name:'兩對！', icon:'✨', desc:'用「兩對」贏下比牌時，每位輸家額外付你 3 個大盲。' },
+  { id:'one_pair',    name:'對子', icon:'👫', desc:'用「一對」贏下比牌時，每位輸家額外付你 2 個大盲。' },
+  { id:'magnet',      name:'吸金術', icon:'🧲', desc:'若贏牌當下你的籌碼少於底池總額的一半，額外獲得 1 個大盲。' },
+  { id:'side_pot',    name:'邊池小偷', icon:'🦝', desc:'若有邊池且你贏下，可從邊池額外偷走 20% 籌碼。' },
+  { id:'streak',      name:'連勝加成', icon:'🔥', desc:'連續贏 3 場比牌後，之後每次比牌獲勝可從每位對手額外拿 1 個小盲。' },
+  { id:'second_rule', name:'老二法則', icon:'🥈', desc:'剩下一個對手且你的籌碼少於對手時，立刻隨機獲得一個額外能力。' },
+  { id:'adventurer',  name:'冒險者', icon:'🎲', desc:'隨機選擇一個能力，發動的時候才會知道是甚麼。' },
+  { id:'whetstone',   name:'磨刀石', icon:'⚒️', desc:'淘汰對手的回合可以額外拿到一個能力。' },
+  { id:'comeback',    name:'逆轉王者', icon:'↩️', desc:'All-in 後河牌公開時，若你從劣勢反超對手，每位參與的對手付你 2 個大盲。' },
+  { id:'biteback',    name:'反咬一口', icon:'🦈', desc:'All-in 戰勝比你籌碼多的對手時，額外獲得對手剩餘籌碼 10% 當獎勵。' },
+  { id:'grit',        name:'忍痛割愛', icon:'💔', desc:'棄牌時若已投入超過總籌碼 30%，下一局可免費跟注大盲一次。' },
+  { id:'second_life', name:'第二條命', icon:'🩹', desc:'All-in 輸後莊家借你 1 個當下大盲。' },
+  { id:'last_straw',  name:'救命稻草', icon:'🌾', desc:'每局結算後若你籌碼是全場最少，下一局的第一個大盲免費。' },
+];
+const POWER_BY_ID = Object.fromEntries(POWER_UPS.map(p=>[p.id,p]));
+const MODES = [
+  { id:'classic',    name:'經典傳奇', tag:'最純粹的德州撲克' },
+  { id:'less',       name:'以少為多', tag:'拿掉小數字' },
+  { id:'joker',      name:'抽鬼牌',   tag:'隨機拿掉幾個數字' },
+  { id:'bb_adv',     name:'大盲優勢', tag:'某個數字加權' },
+  { id:'sunk',       name:'沉沒成本', tag:'preflop 棄牌罰' },
+  { id:'fast_think', name:'快思快想', tag:'思考時間縮短' },
+  { id:'fast_blind', name:'快速晉升', tag:'升盲變快' },
+  { id:'rule27',     name:'27 規則',  tag:'拿到 2&7 贏全桌' },
+];
+const HAND_TYPES = ['高牌','一對','兩對','三條','順子','同花','葫蘆','鐵支','同花順','皇家同花順'];
+const RANK_VAL = {'2':2,'3':3,'4':4,'5':5,'6':6,'7':7,'8':8,'9':9,'T':10,'J':11,'Q':12,'K':13,'A':14};
+
 // ============ 工具 ============
 const $ = s => document.querySelector(s);
 const $$ = s => document.querySelectorAll(s);
 const fmt = n => (n||0).toLocaleString('en-US');
 const SUIT_SYM = { s:'♠', h:'♥', d:'♦', c:'♣' };
+
+// 簡化版 5 張牌評分（給 client 算自己當前牌型）
+function _score5(five){
+  const vals = five.map(c=>RANK_VAL[c.rank]).sort((a,b)=>b-a);
+  const suits = five.map(c=>c.suit);
+  const rcnt = {};
+  for(const v of vals) rcnt[v] = (rcnt[v]||0)+1;
+  const groups = Object.entries(rcnt).map(([v,c])=>({v:+v,c})).sort((a,b)=>b.c-a.c||b.v-a.v);
+  const flush = suits.every(s=>s===suits[0]);
+  let str = false;
+  for(let i=0;i<4;i++) if(vals[i]-vals[i+1]!==1){ str=false; break; } else if(i===3) str=true;
+  if(!str){ str = (vals[0]===14 && vals[1]===5 && vals[2]===4 && vals[3]===3 && vals[4]===2); }
+  if(str&&flush) return [vals[0]===14?9:8, vals[0]];
+  if(groups[0].c===4) return [7, groups[0].v];
+  if(groups[0].c===3 && groups[1] && groups[1].c===2) return [6, groups[0].v];
+  if(flush) return [5, ...vals];
+  if(str) return [4, vals[0]];
+  if(groups[0].c===3) return [3, groups[0].v];
+  if(groups[0].c===2 && groups[1] && groups[1].c===2) return [2, Math.max(groups[0].v,groups[1].v)];
+  if(groups[0].c===2) return [1, groups[0].v];
+  return [0, ...vals];
+}
+function _bestType(cards){
+  if(!cards || cards.length<5) return -1;
+  const idx=[];
+  for(let a=0;a<cards.length-4;a++) for(let b=a+1;b<cards.length-3;b++)
+    for(let c=b+1;c<cards.length-2;c++) for(let d=c+1;d<cards.length-1;d++)
+      for(let e=d+1;e<cards.length;e++) idx.push([a,b,c,d,e]);
+  let best=-1;
+  for(const cb of idx){
+    const sc = _score5(cb.map(i=>cards[i]));
+    if(sc[0] > best) best = sc[0];
+  }
+  return best;
+}
 function toast(msg, dur=2000){
   const t = $('#toast');
   t.textContent = msg;
@@ -428,6 +731,203 @@ function showBigOverlay(stage, title, desc, ms=2500){
   setTimeout(()=>{ el.classList.add('fade-out'); setTimeout(()=> el.remove(), 300); }, ms);
 }
 
+// ============ 視覺特效 ============
+function showEffectToast(name, msg, variant){
+  let stack = document.getElementById('effectToastStack');
+  if(!stack){
+    stack = document.createElement('div');
+    stack.id = 'effectToastStack';
+    stack.className = 'effect-toast-stack';
+    document.body.appendChild(stack);
+  }
+  const t = document.createElement('div');
+  t.className = 'effect-toast' + (variant ? ' '+variant : '');
+  t.innerHTML = `<span class="et-name">${name}</span>${msg}`;
+  stack.appendChild(t);
+  setTimeout(()=> t.remove(), 4200);
+}
+
+function showBlindUp(level, sb, bb){
+  document.querySelectorAll('.blind-up-overlay').forEach(e=> e.remove());
+  let bbCount = 0;
+  if(lastState && bb > 0){
+    const me = lastState.players.find(p=> p.id === myId);
+    if(me) bbCount = Math.floor(me.chips / bb);
+  }
+  const el = document.createElement('div');
+  el.className = 'blind-up-overlay';
+  el.innerHTML = `<div class="blind-up-card">
+    <div class="bu-stage">STAGE ${level}</div>
+    <div class="bu-level">第 ${level} 階段</div>
+    <div class="bu-ratio"><span class="arrow">▲</span>盲注 ×2</div>
+    <div class="bu-blinds">${fmt(sb)} / ${fmt(bb)}</div>
+    <div class="bu-stack">你還剩<strong>${bbCount}</strong>BB</div>
+  </div>`;
+  document.body.appendChild(el);
+  setTimeout(()=> el.remove(), 2950);
+}
+
+function showShowdownHandName(name){
+  document.querySelectorAll('.showdown-handname').forEach(e=> e.remove());
+  const el = document.createElement('div');
+  el.className = 'showdown-handname';
+  el.textContent = name;
+  document.body.appendChild(el);
+  setTimeout(()=> el.remove(), 3000);
+}
+
+function showRankUpToast(fromName, toName){
+  const old = document.querySelector('.rank-up-toast');
+  if(old) old.remove();
+  const el = document.createElement('div');
+  el.className = 'rank-up-toast';
+  el.innerHTML = `<span class="from">${fromName} →</span><span class="arrow">▲ 升級</span>${toName}`;
+  document.body.appendChild(el);
+  setTimeout(()=> el.remove(), 2400);
+}
+
+function flyChipsToPot(seatEl, amount){
+  if(!seatEl) return;
+  const potEl = $('#potVal');
+  if(!potEl) return;
+  const seatRect = seatEl.getBoundingClientRect();
+  const potRect = potEl.getBoundingClientRect();
+  const startX = seatRect.left + seatRect.width/2;
+  const startY = seatRect.top + seatRect.height/2;
+  const endX = potRect.left + potRect.width/2;
+  const endY = potRect.top + potRect.height/2;
+  const count = Math.min(6, Math.max(2, Math.floor(Math.log10(Math.max(amount,10)))+1));
+  for(let i=0;i<count;i++){
+    const chip = document.createElement('div');
+    chip.className = 'chip-fly';
+    chip.style.left = (startX - 16 + (Math.random()-0.5)*16) + 'px';
+    chip.style.top = (startY - 16 + (Math.random()-0.5)*8) + 'px';
+    chip.style.opacity = '0';
+    chip.style.transform = 'scale(0.3)';
+    document.body.appendChild(chip);
+    setTimeout(()=>{
+      chip.style.opacity = '1';
+      chip.style.transform = 'scale(1)';
+    }, i*60);
+    setTimeout(()=>{
+      chip.style.left = (endX - 16 + (Math.random()-0.5)*30) + 'px';
+      chip.style.top = (endY - 16 + (Math.random()-0.5)*16) + 'px';
+      chip.style.opacity = '0.3';
+      chip.style.transform = 'scale(0.6)';
+    }, i*60 + 200);
+    setTimeout(()=> chip.remove(), i*60 + 900);
+  }
+}
+
+function showActionPop(seatEl, type, amount){
+  if(!seatEl) return;
+  seatEl.querySelectorAll('.action-pop').forEach(e=> e.remove());
+  const el = document.createElement('div');
+  el.className = 'action-pop ' + type;
+  let txt;
+  if(type === 'fold') txt = '棄牌';
+  else if(type === 'check') txt = '過牌';
+  else if(type === 'call') txt = `跟注 ${fmt(amount)}`;
+  else if(type === 'raise') txt = `加注 ${fmt(amount)}`;
+  else if(type === 'allin') txt = 'ALL IN';
+  el.textContent = txt;
+  seatEl.appendChild(el);
+  setTimeout(()=> el.remove(), 2200);
+}
+
+let pickPendingTimer = null;
+let choosePowerCdTimer = null;
+
+function showChoosePowerModal(choices, deadline){
+  closeChoosePowerModal();
+  const overlay = document.createElement('div');
+  overlay.className = 'power-pick-overlay';
+  overlay.id = 'powerPickOverlay';
+  overlay.innerHTML = `
+    <div class="power-pick-card">
+      <div class="pp-title">★ 你淘汰了對手 · 選個能力</div>
+      <div class="pp-sub">3 選 1 · <span class="pp-cd" id="ppCd">30</span> 秒後系統隨機選</div>
+      <div class="power-pick-grid">
+        ${choices.map((c,i)=>`<div class="power-card" data-id="${c.id}">
+          <div class="pc-ico">${c.icon}</div>
+          <div class="pc-name">${c.name}</div>
+          <div class="pc-desc">${c.desc}</div>
+        </div>`).join('')}
+      </div>
+    </div>`;
+  document.body.appendChild(overlay);
+  overlay.addEventListener('click', e=>{
+    const card = e.target.closest('.power-card');
+    if(!card) return;
+    sendWS({ type:'select-power', powerId: card.dataset.id });
+    closeChoosePowerModal();
+  });
+  if(choosePowerCdTimer) clearInterval(choosePowerCdTimer);
+  choosePowerCdTimer = setInterval(()=>{
+    const remain = Math.max(0, Math.ceil((deadline - Date.now())/1000));
+    const cd = document.getElementById('ppCd');
+    if(cd) cd.textContent = remain;
+    if(remain <= 0){ closeChoosePowerModal(); }
+  }, 200);
+}
+function closeChoosePowerModal(){
+  const old = document.getElementById('powerPickOverlay');
+  if(old) old.remove();
+  if(choosePowerCdTimer){ clearInterval(choosePowerCdTimer); choosePowerCdTimer = null; }
+}
+
+function showPickPendingBanner(killerName, deadline){
+  closePickPendingBanner();
+  const el = document.createElement('div');
+  el.className = 'pick-pending-banner';
+  el.id = 'pickPendingBanner';
+  el.innerHTML = `🎁 <span><strong>${killerName}</strong> 淘汰對手，正在選能力…</span><span class="cd" id="ppbCd">30</span><span>s</span>`;
+  document.body.appendChild(el);
+  if(pickPendingTimer) clearInterval(pickPendingTimer);
+  pickPendingTimer = setInterval(()=>{
+    const remain = Math.max(0, Math.ceil((deadline - Date.now())/1000));
+    const cd = document.getElementById('ppbCd');
+    if(cd) cd.textContent = remain;
+    if(remain <= 0) closePickPendingBanner();
+  }, 200);
+}
+function closePickPendingBanner(){
+  const old = document.getElementById('pickPendingBanner');
+  if(old) old.remove();
+  if(pickPendingTimer){ clearInterval(pickPendingTimer); pickPendingTimer = null; }
+}
+
+function showPowerAppliedOverlay(playerName, power){
+  if(!power) return;
+  const overlay = document.createElement('div');
+  overlay.className = 'power-desc-overlay';
+  overlay.innerHTML = `<div class="power-desc-card">
+    <div class="pdc-ico">${power.icon}</div>
+    <div class="pdc-name">${power.name}</div>
+    <div class="pdc-target"><strong>${playerName}</strong> 獲得能力</div>
+    <div class="pdc-desc">${power.desc}</div>
+    <div class="pdc-tap">點擊任意處關閉</div>
+  </div>`;
+  document.body.appendChild(overlay);
+  const close = ()=> overlay.remove();
+  overlay.addEventListener('click', close);
+  setTimeout(close, 4000);
+}
+
+function updateModeBanner(mode, level, detail){
+  const banner = $('#modeBanner');
+  if(!banner) return;
+  if(!mode || mode === 'classic'){
+    banner.classList.add('hidden');
+    return;
+  }
+  banner.classList.remove('hidden');
+  const m = MODES.find(x=> x.id === mode);
+  $('#modeName').textContent = m ? m.name : mode;
+  $('#modeLv').textContent = `LV ${level||1}`;
+  $('#modeDesc').textContent = detail || (m ? m.tag : '');
+}
+
 // ============ 狀態 ============
 let ws = null;
 let myId = null;
@@ -438,6 +938,9 @@ let lastState = null;
 let isHost = false;
 let turnTickerId = null;
 let myMode = 'create';
+let myTalent = null;            // 我選的角色
+let lastMyHandType = -1;        // 上次我的牌型（用來偵測升級）
+let playerSeatMap = new Map();  // playerId -> seat DOM
 
 // ============ Lobby UI ============
 $('#modeCreate').addEventListener('click', ()=>{
@@ -499,7 +1002,9 @@ function renderWaitRoom(){
     const row = document.createElement('div');
     row.className = 'wait-player' + (p.id === lobby.hostId ? ' host':'');
     const isMe = p.id === myId;
-    row.innerHTML = `<span class="ico">${p.isAI?'🤖':'🧑'}</span><span class="name">${p.name}</span>${isMe?'<span class="you">你</span>':''}`;
+    const ch = p.talent ? CHAR_BY_ID[p.talent] : null;
+    const charBadge = ch ? `<span title="${ch.name} — ${ch.desc}" style="font-size:18px;background:rgba(231,181,59,.18);border:1px solid var(--gold);padding:2px 8px;border-radius:99px">${ch.icon} ${ch.name}</span>` : `<span style="font-size:11px;color:var(--text-mute);letter-spacing:1px">未選角</span>`;
+    row.innerHTML = `<span class="ico">${p.isAI?'🤖':'🧑'}</span><span class="name">${p.name}</span>${charBadge}${isMe?'<span class="you">你</span>':''}`;
     list.appendChild(row);
   });
   isHost = lobby.hostId === myId;
@@ -510,6 +1015,81 @@ function renderWaitRoom(){
     $('#startBtn').classList.add('hidden');
     $('#waitNote').textContent = '等房主開始遊戲…';
   }
+  renderModeGrid();
+  renderCharGrid();
+}
+
+function renderModeGrid(){
+  const grid = $('#modeGrid');
+  const lvr = $('#levelRow');
+  const tip = $('#modeDetailTip');
+  if(!grid || !lobby) return;
+  const isHost = lobby.hostId === myId;
+  const curMode = lobby.settings.mode || 'classic';
+  const curLv = lobby.settings.level || 1;
+  grid.innerHTML = '';
+  MODES.forEach(m=>{
+    const el = document.createElement('div');
+    el.className = 'mode-card' + (m.id===curMode?' selected':'');
+    el.innerHTML = `<div class="nm">${m.name}</div>`;
+    if(isHost){
+      el.addEventListener('click', ()=>{
+        sendWS({ type:'update-settings', settings:{ mode:m.id } });
+      });
+    } else {
+      el.style.cursor = 'default';
+    }
+    grid.appendChild(el);
+  });
+  lvr.innerHTML = '';
+  for(let l=1;l<=3;l++){
+    const b = document.createElement('button');
+    b.textContent = `LV ${l}`;
+    if(l===curLv) b.classList.add('active');
+    if(isHost){
+      b.addEventListener('click', ()=>{
+        sendWS({ type:'update-settings', settings:{ level: l } });
+      });
+    }
+    lvr.appendChild(b);
+  }
+  // detail
+  tip.textContent = lobby.modeDetail || '';
+}
+
+function renderCharGrid(){
+  const grid = $('#charGrid');
+  if(!grid || !lobby) return;
+  // 收集已被佔用的 talent → playerId
+  const taken = new Map();   // talentId -> playerName
+  lobby.players.forEach(p=>{
+    if(p.talent) taken.set(p.talent, p);
+  });
+  const myCard = lobby.players.find(p=> p.id === myId);
+  myTalent = myCard ? myCard.talent : null;
+  grid.innerHTML = '';
+  CHARACTERS.forEach(c=>{
+    const el = document.createElement('div');
+    el.className = 'char-card';
+    const occ = taken.get(c.id);
+    const isMine = occ && occ.id === myId;
+    if(isMine) el.classList.add('selected');
+    else if(occ) el.classList.add('taken');
+    el.innerHTML = `<div class="ico">${c.icon}</div><div class="nm">${c.name}</div>${occ?`<div class="by">${isMine?'你':occ.name.slice(0,3)}</div>`:''}`;
+    el.addEventListener('mouseenter', ()=>{
+      $('#charTip').innerHTML = `<strong>${c.icon} ${c.name}</strong><br>${c.desc}`;
+    });
+    el.addEventListener('click', ()=>{
+      if(occ && occ.id !== myId) return;  // 別人的位子不能點
+      if(isMine){
+        // 取消
+        sendWS({ type:'select-talent', talentId: null });
+      } else {
+        sendWS({ type:'select-talent', talentId: c.id });
+      }
+    });
+    grid.appendChild(el);
+  });
 }
 $('#copyCodeBtn').addEventListener('click', async ()=>{
   const url = `${location.origin}${location.pathname}?code=${lobby.code}`;
@@ -626,9 +1206,66 @@ function renderTable(state){
     if(playerIdxInState === state.bbPos){
       const b = document.createElement('div'); b.className='badge bb'; b.textContent='BB'; seat.appendChild(b);
     }
+    // 角色 chip
+    seat.querySelectorAll('.talent-chip').forEach(b=> b.remove());
+    if(p.talent){
+      const c = CHAR_BY_ID[p.talent];
+      if(c){
+        const chip = document.createElement('div');
+        chip.className = 'talent-chip' + (p.id===myId?' you':'');
+        chip.textContent = c.icon;
+        chip.title = `${c.name} — ${c.desc}`;
+        seat.appendChild(chip);
+      }
+    }
+    // 能力 chips
+    seat.querySelectorAll('.powers-row').forEach(b=> b.remove());
+    if(p.powerUps && p.powerUps.length){
+      const row = document.createElement('div');
+      row.className = 'powers-row';
+      p.powerUps.forEach(pid=>{
+        const pw = POWER_BY_ID[pid];
+        if(!pw) return;
+        const c = document.createElement('span');
+        c.className = 'pwr-chip';
+        c.textContent = pw.icon;
+        c.title = `${pw.name} — ${pw.desc}`;
+        row.appendChild(c);
+      });
+      seat.appendChild(row);
+    }
+    // 記下 seat 方便 action-pop / flyChip 找 DOM
+    playerSeatMap.set(p.id, seat);
   }
 
+  // 我的當前牌型（公牌 ≥ 3 才算）
+  updateMyHand(state);
+
   renderStackRanking(state);
+}
+
+function updateMyHand(state){
+  const block = $('#myHandBlock');
+  if(!block) return;
+  const me = state.players.find(p=> p.id === myId);
+  if(!me || !me.hole || me.hole.length < 2 || (state.community||[]).length < 3 || me.folded || !me.alive){
+    block.style.display = 'none';
+    lastMyHandType = -1;
+    return;
+  }
+  const all = me.hole.concat(state.community);
+  const t = _bestType(all);
+  if(t < 0){ block.style.display = 'none'; return; }
+  block.style.display = '';
+  $('#myHandVal').textContent = HAND_TYPES[t] || '?';
+  if(lastMyHandType >= 0 && t > lastMyHandType){
+    block.classList.remove('up');
+    void block.offsetWidth;
+    block.classList.add('up');
+    showRankUpToast(HAND_TYPES[lastMyHandType], HAND_TYPES[t]);
+    setTimeout(()=> block.classList.remove('up'), 1700);
+  }
+  lastMyHandType = t;
 }
 
 function cardEl(c, small){
@@ -880,9 +1517,29 @@ function handleMessage(m){
     case 'game-started':
       showGame();
       toast('遊戲開始！');
+      updateModeBanner(m.mode, m.level, m.modeDetail);
+      break;
+    case 'choose-power':
+      showChoosePowerModal(m.choices || [], m.deadline);
+      break;
+    case 'power-pick-pending':
+      if(m.killerId !== myId){
+        showPickPendingBanner(m.killerName || '某人', m.deadline);
+      }
+      break;
+    case 'power-applied':
+      closeChoosePowerModal();
+      closePickPendingBanner();
+      showPowerAppliedOverlay(m.playerName, m.power);
+      if(m.power){
+        showEffectToast('★ ' + m.power.icon + ' ' + m.power.name, `<strong>${m.playerName}</strong> 獲得能力`, 'purple');
+      }
       break;
     case 'game-state':
       lastState = m.state;
+      if(m.state.mode){
+        updateModeBanner(m.state.mode, m.state.level, '');
+      }
       renderTable(m.state);
       if(m.yourTurn){
         setMyTurn(m.yourTurn);
@@ -890,17 +1547,51 @@ function handleMessage(m){
         clearMyTurn();
       }
       break;
-    case 'action-result':
-      // server 已經在 game-state 內反映了，這裡只做動畫提示（簡化版可省）
+    case 'action-result': {
+      // 視覺特效：座位上彈出 RAISE/CALL/FOLD/ALLIN + 飛籌碼
+      const seat = playerSeatMap.get(m.playerId);
+      if(seat){
+        const a = m.action || {};
+        let popType = a.type;
+        let popAmt = 0;
+        if(a.type === 'call'){
+          // 算這個玩家比之前下注多多少
+          const cur = (m.players || []).find(x=> x.id === m.playerId);
+          const prev = (lastState?.players || []).find(x=> x.id === m.playerId);
+          if(cur && prev) popAmt = Math.max(0, cur.bet - prev.bet);
+        } else if(a.type === 'raise'){
+          popAmt = a.amount || 0;
+        }
+        showActionPop(seat, popType, popAmt);
+        if(['call','raise','allin'].includes(a.type) && popAmt > 0 || a.type === 'allin'){
+          flyChipsToPot(seat, popAmt || (m.pot || 0));
+        }
+      }
       break;
+    }
     case 'street':
       // 新公牌 — game-state 也會更新
       break;
     case 'showdown':
       handleShowdown(m.result);
       break;
+    case 'triggers': {
+      // 即時觸發 toast（raise/call/fold 時觸發的角色）
+      (m.triggers || []).forEach((t, i)=>{
+        setTimeout(()=>{
+          const fromP = lastState?.players?.find(x=> x.id === t.fromId);
+          const toP = lastState?.players?.find(x=> x.id === t.toId);
+          let msg = '';
+          if(fromP && toP) msg = `${fromP.name} → ${toP.name} <span class="et-amt">${fmt(t.amount)}</span>`;
+          else if(toP) msg = `${toP.name} <span class="et-amt">+${fmt(t.amount)}</span>`;
+          else msg = `<span class="et-amt">${fmt(t.amount)}</span>`;
+          showEffectToast((t.icon||'✦') + ' ' + t.label, msg);
+        }, i * 350);
+      });
+      break;
+    }
     case 'blind-up':
-      showBigOverlay(`STAGE ${m.level}`, `第 ${m.level} 階段`, `盲注 ${fmt(m.sb)} / ${fmt(m.bb)}`, 2500);
+      showBlindUp(m.level, m.sb, m.bb);
       break;
     case 'blind-tick':
       const s = Math.ceil(m.msLeft/1000);
@@ -918,12 +1609,7 @@ function handleMessage(m){
 }
 
 function handleShowdown(r){
-  if(r.foldOut){
-    return;  // 一人贏，已經在 game-state 反映
-  }
-  // 顯示牌型大字
-  showBigOverlay('SHOWDOWN', r.handName || '', null, 3000);
-  // 把 reveals 的牌寫到 lastState 對應 player 的 hole（讓 renderTable 能掀牌）
+  // 把 reveals 的牌寫到 lastState（即使 foldOut 也試）
   if(r.reveals && lastState){
     Object.entries(r.reveals).forEach(([pid, hole])=>{
       const p = lastState.players.find(x=> x.id === pid);
@@ -931,32 +1617,120 @@ function handleShowdown(r){
     });
     renderTable(lastState);
   }
-  // 標贏家
-  if(r.winners){
-    setTimeout(()=>{
+  if(!r.foldOut){
+    // 比牌大字
+    showShowdownHandName(r.handName || '');
+  }
+
+  // 標贏家 + 高亮 matched cards
+  setTimeout(()=>{
+    if(r.winners){
       const seats = $$('.seat');
       const map = mapToSeats(lastState);
       for(let i=0;i<6;i++){
         if(map[i] && r.winners.includes(map[i].id)){
           seats[i].classList.add('winner');
+          // 加 WIN 徽章
+          if(!seats[i].querySelector('.win-badge')){
+            const b = document.createElement('div');
+            b.className = 'win-badge';
+            b.textContent = 'WIN';
+            seats[i].appendChild(b);
+          }
         }
       }
-      // 高亮 matched cards
       if(r.matchedKeys){
         const keys = new Set(r.matchedKeys);
-        $$('.card').forEach(card=>{
-          // 沒辦法直接用 key 對 → 從 community + visible hole 反查
-        });
-        // 重建一次以 matched 標亮
-        markMatchedCards(keys);
+        markShowdownMatched(keys);
       }
-    }, 100);
-  }
-  // 6 秒後清掉
+    }
+
+    // 飛籌碼到贏家
+    if(r.winners && r.potWon > 0){
+      r.winners.forEach(wid=>{
+        const seat = playerSeatMap.get(wid);
+        if(seat) flyPotToSeat(seat, Math.floor(r.potWon / r.winners.length));
+      });
+    }
+
+    // 角色 / 能力觸發 toast
+    if(r.triggers && r.triggers.length){
+      r.triggers.forEach((t, i)=>{
+        setTimeout(()=>{
+          const fromP = lastState?.players?.find(x=> x.id === t.fromId);
+          const toP = lastState?.players?.find(x=> x.id === t.toId);
+          let msg = '';
+          if(fromP && toP) msg = `${fromP.name} → ${toP.name} <span class="et-amt">${fmt(t.amount)}</span>`;
+          else if(toP) msg = `${toP.name} <span class="et-amt">+${fmt(t.amount)}</span>`;
+          showEffectToast((t.icon||'✦') + ' ' + t.label, msg);
+        }, 1200 + i * 380);
+      });
+    }
+  }, 200);
+
+  // 7 秒後清掉
   setTimeout(()=>{
     $$('.seat.winner').forEach(s=> s.classList.remove('winner'));
+    $$('.win-badge').forEach(b=> b.remove());
+    $$('.card.showdown-matched').forEach(c=> c.classList.remove('showdown-matched'));
     $$('.card.matched').forEach(c=> c.classList.remove('matched'));
-  }, 6000);
+    lastMyHandType = -1;
+  }, 7000);
+}
+
+function flyPotToSeat(seat, amount){
+  const potEl = $('#potVal');
+  if(!potEl || !seat) return;
+  const seatRect = seat.getBoundingClientRect();
+  const potRect = potEl.getBoundingClientRect();
+  const startX = potRect.left + potRect.width/2;
+  const startY = potRect.top + potRect.height/2;
+  const endX = seatRect.left + seatRect.width/2;
+  const endY = seatRect.top + seatRect.height/2;
+  const count = Math.min(8, Math.max(3, Math.floor(Math.log10(Math.max(amount,10)))+2));
+  for(let i=0;i<count;i++){
+    const chip = document.createElement('div');
+    chip.className = 'chip-fly';
+    chip.style.left = (startX - 16 + (Math.random()-0.5)*20) + 'px';
+    chip.style.top = (startY - 16 + (Math.random()-0.5)*12) + 'px';
+    chip.style.opacity = '0';
+    chip.style.transform = 'scale(0.4)';
+    document.body.appendChild(chip);
+    setTimeout(()=>{
+      chip.style.opacity = '1';
+      chip.style.transform = 'scale(1.1)';
+    }, i*70);
+    setTimeout(()=>{
+      chip.style.left = (endX - 16 + (Math.random()-0.5)*30) + 'px';
+      chip.style.top = (endY - 16 + (Math.random()-0.5)*16) + 'px';
+      chip.style.opacity = '0.5';
+      chip.style.transform = 'scale(0.7)';
+    }, i*70 + 250);
+    setTimeout(()=> chip.remove(), i*70 + 1100);
+  }
+}
+
+function markShowdownMatched(keys){
+  if(!lastState) return;
+  const commEls = $('#community').children;
+  for(let i=0;i<lastState.community.length;i++){
+    const c = lastState.community[i];
+    if(c && keys.has(c.rank + c.suit) && commEls[i]){
+      commEls[i].classList.add('showdown-matched');
+    }
+  }
+  const seats = $$('.seat');
+  const map = mapToSeats(lastState);
+  for(let i=0;i<6;i++){
+    const p = map[i];
+    if(!p || !p.hole) continue;
+    const holeEls = seats[i].querySelector('.hole').children;
+    p.hole.forEach((c, idx)=>{
+      if(keys.has(c.rank + c.suit) && holeEls[idx]){
+        holeEls[idx].classList.add('showdown-matched');
+      }
+    });
+  }
 }
 
 function markMatchedCards(keys){

@@ -9,7 +9,7 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const { WebSocketServer } = require('ws');
-const { Game, aiDecide } = require('./game-engine');
+const { Game, aiDecide, CHARACTERS, POWER_UPS, MODES, modeDetail } = require('./game-engine');
 
 const PORT = process.env.PORT || 3000;
 const app = express();
@@ -51,10 +51,17 @@ class Room {
       aiCount: 0,
       baseTurnSec: 20,
       blindMs: 120000,
+      mode: 'classic',
+      level: 1,
     }, settings || {});
     this.game = new Game();
     this.game.blindMs = this.settings.blindMs;
     this.game.turnTimeoutMs = this.settings.baseTurnSec * 1000;
+    this.game.baseTurnTimeoutMs = this.settings.baseTurnSec * 1000;
+    this.game.mode = this.settings.mode || 'classic';
+    this.game.level = this.settings.level || 1;
+    this.powerPickState = null;  // { playerId, choices, deadline, timer }
+    this._blindElapsedAtPause = 0;
     this.humanIds = new Map();   // playerId -> ws
     this.turnDeadline = 0;
     this.turnTimer = null;
@@ -63,6 +70,7 @@ class Room {
     this.lastAction = null;
     this.lastShowdown = null;
     this.spectators = new Set(); // ws set, 觀戰者（已淘汰真人）
+    this.talents = new Map();    // playerId -> talentId（lobby 階段，AI 也用）
   }
 
   addHumanPlayer(playerId, name, ws){
@@ -82,6 +90,27 @@ class Room {
       const aiId = 'AI' + (i+1) + '_' + Math.random().toString(36).slice(2,5);
       this.game.addPlayer({ id: aiId, name: `CPU ${i+1}`, isAI: true });
     }
+  }
+
+  // 把已選的 talent 套用，沒選的隨機指派（每位玩家不重複）
+  assignTalents(){
+    const used = new Set([...this.talents.values()].filter(Boolean));
+    const pool = CHARACTERS.filter(c=> !used.has(c.id));
+    // 洗牌 pool
+    for(let i=pool.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [pool[i],pool[j]] = [pool[j],pool[i]];
+    }
+    this.game.players.forEach(p=>{
+      let t = this.talents.get(p.id);
+      if(!t){
+        const pick = pool.shift();
+        if(pick) t = pick.id;
+        else t = CHARACTERS[Math.floor(Math.random()*CHARACTERS.length)].id;
+        this.talents.set(p.id, t);
+      }
+      p.talent = t;
+    });
   }
 
   removePlayer(playerId){
@@ -104,9 +133,19 @@ class Room {
     const totalAfter = this.game.players.length + this.settings.aiCount;
     if(totalAfter < 2) return false;
     this.fillAI();
+    this.assignTalents();
+    // 套用 mode / level
+    this.game.mode = this.settings.mode || 'classic';
+    this.game.level = this.settings.level || 1;
     this.game.start();
     this.phase = 'between-hands';
-    this.broadcast({ type:'game-started' });
+    this.broadcast({
+      type:'game-started',
+      talents: this.game.players.map(p=>({ id:p.id, name:p.name, isAI:p.isAI, talent:p.talent })),
+      mode: this.game.mode,
+      level: this.game.level,
+      modeDetail: modeDetail(this.game.mode, this.game.level),
+    });
     this._nextHand();
     this._startBlindTimer();
     return true;
@@ -128,6 +167,11 @@ class Room {
     }
     this.phase = 'in-game';
     this._broadcastState();
+    // 開局產生的 triggers（east_money / last_straw 免費 BB）即時 broadcast
+    const handStartTriggers = (this.game._triggers || []).slice();
+    if(handStartTriggers.length){
+      this.broadcast({ type:'triggers', triggers: handStartTriggers });
+    }
     this._scheduleTurn();
   }
 
@@ -176,6 +220,8 @@ class Room {
 
   _handleAction(playerId, action){
     if(this.turnTimer){ clearTimeout(this.turnTimer); this.turnTimer = null; }
+    // 記錄目前 triggers 數量；action 後新增的就是這次行動的觸發
+    const beforeCnt = (this.game._triggers || []).length;
     const result = this.game.applyAction(playerId, action);
     if(!result.ok){
       // 不合法 → 跳回 schedule（這應該不會發生因為 server 會檢查）
@@ -190,6 +236,11 @@ class Room {
       pot: this.game.pot,
       players: this.game.players.map(p=>({ id:p.id, chips:p.chips, bet:p.bet, folded:p.folded, allIn:p.allIn })),
     });
+    // 即時 broadcast 這次行動產生的 talent triggers（例如 氣勢凌人/水漲船高/精準出擊）
+    const newTriggers = (this.game._triggers || []).slice(beforeCnt);
+    if(newTriggers.length){
+      this.broadcast({ type:'triggers', triggers: newTriggers });
+    }
     this._afterAction();
     return { ok:true };
   }
@@ -209,18 +260,90 @@ class Room {
 
   _doShowdown(){
     this.phase = 'showdown';
+    const beforeCnt = (this.game._triggers || []).length;
     const result = this.game.showdown();
+    // 只 broadcast showdown 內產生的 triggers（先前 broadcast 過的不重複）
+    result.triggers = (this.game._triggers || []).slice(beforeCnt);
     this.lastShowdown = result;
     this.broadcast({
       type:'showdown',
       result,
       players: this.game.players.map(p=>({ id:p.id, chips:p.chips, alive:p.alive })),
     });
-    // 等 6 秒（client 顯示動畫）後開新一手
+    // 等 7.5 秒（client 顯示動畫 + 觸發 toast）後處理能力選擇 / 開新一手
     setTimeout(()=>{
       this.phase = 'between-hands';
+      // 有人被淘汰 → 給 killer 選一個能力
+      if(result.killer && (result.eliminated || []).length){
+        this._startPowerPick(result.killer, result.eliminated);
+      } else {
+        this._nextHand();
+      }
+    }, 7500);
+  }
+
+  _startPowerPick(killerId, eliminated){
+    const killer = this.game.players.find(p=> p.id === killerId);
+    if(!killer || !killer.alive){
       this._nextHand();
-    }, 6000);
+      return;
+    }
+    const choices = this.game.rollPowerChoices(killerId, 3);
+    if(!choices.length){
+      this._nextHand();
+      return;
+    }
+    const deadline = Date.now() + 30000;
+    this.powerPickState = { playerId: killerId, choices, deadline, timer: null };
+    // 暫停升盲計時器（紀錄已過時間）
+    if(this.blindTimer){ clearInterval(this.blindTimer); this.blindTimer = null; }
+    this._blindElapsedAtPause = Date.now() - this.game.blindStartTs;
+
+    // AI 直接秒選
+    if(killer.isAI){
+      const pick = choices[Math.floor(Math.random()*choices.length)];
+      setTimeout(()=> this._finishPowerPick(pick.id), 800);
+      this.broadcast({ type:'power-pick-pending', killerId, killerName:killer.name, eliminated, deadline, isAI:true });
+      return;
+    }
+
+    // 真人：發 choose-power 給 killer，廣播 pending 給其他人
+    const ws = this.humanIds.get(killerId);
+    if(ws){
+      send(ws, { type:'choose-power', choices, deadline });
+    }
+    this.broadcast({ type:'power-pick-pending', killerId, killerName:killer.name, eliminated, deadline, isAI:false });
+
+    // 30 秒沒選 → 隨機
+    this.powerPickState.timer = setTimeout(()=>{
+      const pick = choices[Math.floor(Math.random()*choices.length)];
+      this._finishPowerPick(pick.id);
+    }, 30000);
+  }
+
+  _finishPowerPick(powerId){
+    if(!this.powerPickState) return;
+    const { playerId, timer } = this.powerPickState;
+    if(timer) clearTimeout(timer);
+    this.game.awardPower(playerId, powerId);
+    const player = this.game.players.find(p=> p.id === playerId);
+    const power = POWER_UPS.find(p=> p.id === powerId);
+    this.broadcast({
+      type:'power-applied',
+      playerId,
+      playerName: player ? player.name : '',
+      powerId,
+      power: power || null,
+    });
+    this.powerPickState = null;
+    // 恢復升盲計時器
+    if(this._blindElapsedAtPause){
+      this.game.blindStartTs = Date.now() - this._blindElapsedAtPause;
+      this._blindElapsedAtPause = 0;
+    }
+    this._startBlindTimer();
+    // 等 2 秒讓大家看 power-applied 然後開新一手
+    setTimeout(()=> this._nextHand(), 2000);
   }
 
   _startBlindTimer(){
@@ -299,8 +422,12 @@ class Room {
       code: this.code,
       hostId: this.hostId,
       phase: this.phase,
-      players: this.game.players.map(p=>({ id:p.id, name:p.name, isAI:p.isAI })),
+      players: this.game.players.map(p=>({
+        id:p.id, name:p.name, isAI:p.isAI,
+        talent: this.talents.get(p.id) || null,
+      })),
       settings: this.settings,
+      modeDetail: modeDetail(this.settings.mode || 'classic', this.settings.level || 1),
     };
   }
 }
@@ -366,9 +493,44 @@ function handleMessage(ws, msg){
       Object.assign(room.settings, msg.settings || {});
       if(typeof room.settings.baseTurnSec === 'number'){
         room.game.turnTimeoutMs = room.settings.baseTurnSec * 1000;
+        room.game.baseTurnTimeoutMs = room.settings.baseTurnSec * 1000;
       }
       if(typeof room.settings.blindMs === 'number'){
         room.game.blindMs = room.settings.blindMs;
+      }
+      if(typeof room.settings.mode === 'string') room.game.mode = room.settings.mode;
+      if(typeof room.settings.level === 'number') room.game.level = room.settings.level;
+      room.humanIds.forEach((w)=> send(w, { type:'lobby-update', lobby: room.publicLobbyInfo() }));
+      break;
+    }
+    case 'select-power': {
+      if(!c) return;
+      const room = rooms.get(c.roomCode);
+      if(!room || !room.powerPickState) return;
+      if(room.powerPickState.playerId !== c.playerId) return;
+      const pid = (msg.powerId || '').toString();
+      const valid = room.powerPickState.choices.find(x=> x.id === pid);
+      if(!valid) return;
+      room._finishPowerPick(pid);
+      break;
+    }
+    case 'select-talent': {
+      if(!c) return;
+      const room = rooms.get(c.roomCode);
+      if(!room || room.phase !== 'lobby') return;
+      const tid = msg.talentId || null;
+      // 取消選取
+      if(!tid){
+        room.talents.delete(c.playerId);
+      } else {
+        // 檢查是否被其他人佔用
+        for(const [pid, t] of room.talents.entries()){
+          if(pid !== c.playerId && t === tid){
+            send(ws, { type:'error', msg:'這個角色已被其他人選了' });
+            return;
+          }
+        }
+        room.talents.set(c.playerId, tid);
       }
       room.humanIds.forEach((w)=> send(w, { type:'lobby-update', lobby: room.publicLobbyInfo() }));
       break;

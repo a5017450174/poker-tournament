@@ -1,6 +1,7 @@
 /* =========================================================================
    德撲錦標賽 — 遊戲邏輯引擎（server 端使用）
    經典模式：52 張、標準牌型大小、6 人桌
+   v2: 加上 12 個角色天賦
    ========================================================================= */
 
 const SUITS = ['s','h','d','c'];
@@ -136,6 +137,92 @@ function bestFiveCardHand(cards, validRanks){
 }
 
 /* =========================================================================
+   角色天賦資料（12 個）
+   ========================================================================= */
+const CHARACTERS = [
+  { id:'soft_target', name:'專挑軟柿子', icon:'🍅',
+    desc:'比牌獲勝時，從全場籌碼最少的對手額外多收 1 個小盲。' },
+  { id:'gold_kick',   name:'黃金右腳', icon:'🦵',
+    desc:'比牌時若你輸在踢腳，所有對手付你 3 個小盲補償（保留 1 個小盲給對手）。' },
+  { id:'rich_richer', name:'強者恆強', icon:'👑',
+    desc:'若你是全場籌碼最多，比牌獲勝後向每位輸家額外索取本手投入底池的 5%。' },
+  { id:'rising_tide', name:'水漲船高', icon:'🌊',
+    desc:'你加注後，跟注的對手每人額外付 1 個小盲到底池。' },
+  { id:'imposing',    name:'氣勢凌人', icon:'💢',
+    desc:'你加注時可以少付 1 個小盲（從加注金額扣除）。' },
+  { id:'bully',       name:'惡霸', icon:'👹',
+    desc:'翻牌前你加注後，若所有對手都棄牌，每位對手再付你 0.5 個小盲。' },
+  { id:'street_king', name:'街頭小霸王', icon:'🥊',
+    desc:'比牌獲勝時，每位輸家額外付你 2 個大盲。' },
+  { id:'precision',   name:'精準出擊', icon:'🎯',
+    desc:'小盲位或大盲位棄牌可拿回 1 個小盲。' },
+  { id:'big_blind',   name:'大盲', icon:'🙈',
+    desc:'你看不到自己底牌（全黑）。比牌獲勝時，每位輸家額外付他們本手投入底池的 100%。' },
+  { id:'small_blind', name:'小盲', icon:'🙉',
+    desc:'你只看得到一張底牌。比牌獲勝時，每位輸家額外付他們本手投入底池的 50%。' },
+  { id:'advance',     name:'預支人生', icon:'💳',
+    desc:'All-in 輸掉後，可向籌碼最多的對手借 1 個大盲繼續。下一局開始前要還，沒還就出局。' },
+  { id:'east_money',  name:'東家錢', icon:'💰',
+    desc:'每局開始時 50% 機率向上一局的贏家抽走 1 個小盲。' },
+];
+
+function hasTalent(p, id){ return p && p.talent === id; }
+
+/* =========================================================================
+   增幅能力資料（17 個）
+   ========================================================================= */
+const POWER_UPS = [
+  { id:'arrogant',    name:'不可一世', icon:'🌟', desc:'用「高牌」贏下比牌時，每位輸家額外付你 1 個大盲。' },
+  { id:'p_rule27',    name:'27 法則', icon:'✌️', desc:'底牌剛好 2&7 並贏下牌局時，全場每位對手付你 2 個大盲。' },
+  { id:'three_kind',  name:'三條', icon:'3️⃣', desc:'用「三條」贏下比牌時，每位比牌的輸家額外付你 4 個大盲。' },
+  { id:'pair_back',   name:'天生一對', icon:'👯', desc:'比牌輸了，但手牌是對子的話，可以拿回 2 個大盲。' },
+  { id:'two_pair',    name:'兩對！', icon:'✨', desc:'用「兩對」贏下比牌時，每位輸家額外付你 3 個大盲。' },
+  { id:'one_pair',    name:'對子', icon:'👫', desc:'用「一對」贏下比牌時，每位輸家額外付你 2 個大盲。' },
+  { id:'magnet',      name:'吸金術', icon:'🧲', desc:'若贏牌當下你的籌碼少於底池總額的一半，額外獲得 1 個大盲。' },
+  { id:'side_pot',    name:'邊池小偷', icon:'🦝', desc:'若有邊池且你贏下，可從邊池額外偷走 20% 籌碼。' },
+  { id:'streak',      name:'連勝加成', icon:'🔥', desc:'連續贏 3 場比牌後，之後每次比牌獲勝可從每位對手額外拿 1 個小盲。' },
+  { id:'second_rule', name:'老二法則', icon:'🥈', desc:'剩下一個對手且你的籌碼少於對手時，立刻隨機獲得一個額外能力。' },
+  { id:'adventurer',  name:'冒險者', icon:'🎲', desc:'隨機選擇一個能力，發動的時候才會知道是甚麼。' },
+  { id:'whetstone',   name:'磨刀石', icon:'⚒️', desc:'淘汰對手的回合可以額外拿到一個能力（一手最多拿一個）。' },
+  { id:'comeback',    name:'逆轉王者', icon:'↩️', desc:'All-in 後河牌公開時，若你從劣勢反超對手，每位參與的對手付你 2 個大盲。' },
+  { id:'biteback',    name:'反咬一口', icon:'🦈', desc:'All-in 戰勝比你籌碼多的對手時，額外獲得對手剩餘籌碼 10% 當獎勵。' },
+  { id:'grit',        name:'忍痛割愛', icon:'💔', desc:'棄牌時若已投入超過總籌碼 30%，下一局可免費跟注大盲一次。' },
+  { id:'second_life', name:'第二條命', icon:'🩹', desc:'All-in 輸後莊家借你 1 個當下大盲，本輪結束前要還，還不出來就出局。' },
+  { id:'last_straw',  name:'救命稻草', icon:'🌾', desc:'每局結算後若你籌碼是全場最少，下一局的第一個大盲免費。' },
+];
+
+const POWER_BY_ID = Object.fromEntries(POWER_UPS.map(p=>[p.id,p]));
+
+function hasPower(p, id){ return p && (p.powerUps||[]).includes(id); }
+
+/* =========================================================================
+   8 種變體玩法
+   ========================================================================= */
+const MODES = [
+  { id:'classic',   name:'經典傳奇',  tagline:'最純粹、最標準的德州撲克。' },
+  { id:'less',      name:'以少為多',  tagline:'從牌庫拿掉小數字，順子變稀有、同花更難中。' },
+  { id:'joker',     name:'抽鬼牌',    tagline:'開場隨機抽掉幾個數字，整場都不會出現。' },
+  { id:'bb_adv',    name:'大盲優勢',  tagline:'整副牌變加權，某個數字會超常出現。' },
+  { id:'sunk',      name:'沉沒成本',  tagline:'翻牌前棄牌也要付逃跑費。' },
+  { id:'fast_think',name:'快思快想',  tagline:'每回合決策時間縮短。' },
+  { id:'fast_blind',name:'快速晉升',  tagline:'盲注上升速度更快。' },
+  { id:'rule27',    name:'27 規則',    tagline:'拿到 2 跟 7 還能贏，全桌付你獎金。' },
+];
+function modeDetail(id, l){
+  switch(id){
+    case 'classic': return '52 張完整牌庫，標準牌型大小排序。';
+    case 'less': return `本場拿掉 ${l===1?'2、3':l===2?'2、3、4':'2、3、4、5'}，牌庫剩 ${l===1?44:l===2?40:36} 張。順子變稀有，同花變得更強。`;
+    case 'joker': return `本場開局隨機拿掉 ${l===1?'1 個數字':l===2?'2 個數字':'2 個數字 + 1 個花色'}（整場固定）。`;
+    case 'bb_adv': return `本場主角數字出現機率為 ${l===1?25:l===2?35:50}%。0~4 分鐘以「2」為主角，4~8 分鐘以「8」，8 分鐘後以「A」。`;
+    case 'sunk': return `翻牌前棄牌（非大小盲位）要付小盲的 ${l===1?20:l===2?50:80}%。`;
+    case 'fast_think': return `決策時間縮減為基礎時間的 ${l===1?80:l===2?60:40}%。`;
+    case 'fast_blind': return `盲注上升間隔：${l===1?'1 分 30 秒':l===2?'1 分 15 秒':'1 分鐘'}（原本 2 分鐘）。`;
+    case 'rule27': return `底牌是 2 跟 7（任意花色）並贏下這手時，全桌每位對手付你 ${l===1?0.75:l===2?1:1.5} 倍大盲注。`;
+  }
+  return '';
+}
+
+/* =========================================================================
    Game class — 一個房間 = 一個 Game instance
    ========================================================================= */
 
@@ -164,10 +251,17 @@ class Game {
     this.sbPos = -1;
     this.bbPos = -1;
     this.turnTimeoutMs = 20000;  // 預設 20 秒
+    this.baseTurnTimeoutMs = 20000;  // 基礎，fast_think 模式會縮短
     this.started = false;
     this.ended = false;
     this.lastWinnerId = null;
     this.log = [];
+    // 變體玩法
+    this.mode = 'classic';
+    this.level = 1;
+    this.removedRanks = [];   // joker / less 拿掉的 rank
+    this.removedSuit = null;  // joker level 3 拿掉的花色
+    this.weightTable = null;  // bb_adv 的加權表
   }
 
   addPlayer(p){
@@ -183,12 +277,37 @@ class Game {
       bet: 0,
       totalBet: 0,
       eliminatedAtHand: null,
+      talent: p.talent || null,        // 角色天賦 id
+      powerUps: p.powerUps || [],      // 增幅能力 id 陣列
+      flags: {},                       // freeBBNextHand / freeCallNextHand 等
+      winStreak: 0,
+      showdownWins: 0,
+      _wasAllIn: false,
+      _empty: false,
     });
   }
 
   addLog(msg){
     this.log.push({ t: Date.now(), msg });
     if(this.log.length > 200) this.log.shift();
+  }
+
+  // 把 chip transfer 推到 trigger 佇列，server 會 broadcast 給 client 顯示 toast / 動畫
+  _transferChips(from, to, amount, label){
+    if(!from || !to) return 0;
+    const pay = Math.min(from.chips, Math.floor(amount));
+    if(pay <= 0) return 0;
+    from.chips -= pay;
+    to.chips += pay;
+    this._triggers.push({
+      label,
+      fromId: from.id,
+      toId: to.id,
+      amount: pay,
+      icon: (CHARACTERS.find(c=> c.name===label) || {}).icon || '✦',
+    });
+    this.addLog(`✦ ${label}：${from.name} → ${to.name} ${pay}`);
+    return pay;
   }
 
   start(){
@@ -201,6 +320,102 @@ class Game {
     this.bb = 200;
     this.startTs = Date.now();
     this.blindStartTs = Date.now();
+    // 套用變體玩法
+    this._applyMode();
+  }
+
+  // 把 mode/level 套用到 deck/timing 等
+  _applyMode(){
+    this.removedRanks = [];
+    this.removedSuit = null;
+    this.weightTable = null;
+    const l = this.level || 1;
+    const m = this.mode || 'classic';
+    if(m === 'less'){
+      this.removedRanks = l===1 ? ['2','3'] : l===2 ? ['2','3','4'] : ['2','3','4','5'];
+    } else if(m === 'joker'){
+      // 隨機拿掉
+      const pool = RANKS.slice();
+      for(let i=pool.length-1;i>0;i--){
+        const j = Math.floor(Math.random()*(i+1));
+        [pool[i],pool[j]] = [pool[j],pool[i]];
+      }
+      const cnt = l===1?1 : l===2?2 : 2;
+      this.removedRanks = pool.slice(0, cnt);
+      if(l===3){
+        this.removedSuit = SUITS[Math.floor(Math.random()*SUITS.length)];
+      }
+    } else if(m === 'bb_adv'){
+      // 主角 rank 機率 25/35/50%
+      this.weightTable = { pct: l===1?25 : l===2?35:50 };
+    } else if(m === 'fast_think'){
+      const factor = l===1?0.8 : l===2?0.6 : 0.4;
+      this.turnTimeoutMs = Math.floor(this.baseTurnTimeoutMs * factor);
+    } else if(m === 'fast_blind'){
+      const ms = l===1?90000 : l===2?75000 : 60000;
+      this.blindMs = ms;
+    }
+  }
+
+  // 主角 rank（依時間決定）
+  _heroRank(){
+    if(this.mode !== 'bb_adv') return null;
+    const elapsedMin = (Date.now() - (this.startTs||Date.now())) / 60000;
+    if(elapsedMin < 4) return '2';
+    if(elapsedMin < 8) return '8';
+    return 'A';
+  }
+
+  buildModeDeck(){
+    const valid = RANKS.filter(r=> !this.removedRanks.includes(r));
+    const validSuits = this.removedSuit ? SUITS.filter(s=> s !== this.removedSuit) : SUITS;
+    const d = [];
+    for(const r of valid){
+      for(const s of validSuits){
+        d.push({ rank:r, suit:s, key:r+s });
+      }
+    }
+    // bb_adv 加權：把主角 rank 的牌加倍出現
+    if(this.weightTable){
+      const hero = this._heroRank();
+      if(hero){
+        const heroCards = d.filter(c=> c.rank === hero);
+        const pct = this.weightTable.pct;
+        // 把主角從 d 移除，重新插入足夠多份讓佔比達到 pct
+        const others = d.filter(c=> c.rank !== hero);
+        const heroSetCount = Math.max(1, Math.round((others.length * pct / 100) / Math.max(1, (100-pct)/100) / heroCards.length));
+        const newHero = [];
+        for(let i=0;i<heroSetCount;i++) newHero.push(...heroCards.map(c=>({...c})));
+        d.length = 0;
+        d.push(...others, ...newHero);
+      }
+    }
+    return d;
+  }
+
+  // 給予玩家一個能力
+  awardPower(playerId, powerId){
+    const p = this.players.find(x=> x.id === playerId);
+    if(!p) return false;
+    p.powerUps = p.powerUps || [];
+    if(p.powerUps.includes(powerId)) return false;
+    p.powerUps.push(powerId);
+    this.addLog(`★ ${p.name} 獲得能力：${(POWER_BY_ID[powerId]||{}).name||powerId}`);
+    return true;
+  }
+
+  // 給玩家挑 n 個未擁有的能力（隨機）
+  rollPowerChoices(playerId, n=3){
+    const p = this.players.find(x=> x.id === playerId);
+    if(!p) return [];
+    const owned = new Set(p.powerUps || []);
+    const pool = POWER_UPS.filter(x=> !owned.has(x.id));
+    const picks = [];
+    for(let i=pool.length-1;i>0;i--){
+      const j = Math.floor(Math.random()*(i+1));
+      [pool[i],pool[j]] = [pool[j],pool[i]];
+    }
+    return pool.slice(0, n);
   }
 
   // 升盲檢查（外部 server tick 呼叫，回傳是否升盲）
@@ -238,12 +453,14 @@ class Game {
       return false;
     }
     this.handNum++;
+    this._triggers = [];
     this.players.forEach(p=>{
       p.hole = [];
       p.folded = false;
       p.allIn = false;
       p.bet = 0;
       p.totalBet = 0;
+      p._wasAllIn = false;
     });
     this.community = [];
     this.pot = 0;
@@ -256,10 +473,10 @@ class Game {
     do { this.dealerPos = (this.dealerPos + 1) % this.players.length; }
     while(!this.players[this.dealerPos].alive);
 
-    // 重建並洗牌
-    this.deck = buildDeck();
+    // 重建並洗牌（依模式）
+    this.deck = (this.mode && this.mode !== 'classic') ? this.buildModeDeck() : buildDeck();
     shuffle(this.deck);
-    this.validRanks = new Set(RANKS);
+    this.validRanks = new Set(RANKS.filter(r=> !this.removedRanks.includes(r)));
 
     // 找 SB / BB / UTG
     const N = this.players.length;
@@ -281,7 +498,20 @@ class Game {
     this.sbPos = sbPos;
     this.bbPos = bbPos;
     this._postBlind(this.players[sbPos], this.sb, 'SB');
-    this._postBlind(this.players[bbPos], this.bb, 'BB');
+    // 救命稻草：BB 免費
+    const bbPlayer = this.players[bbPos];
+    if(bbPlayer.flags && bbPlayer.flags.freeBBNextHand){
+      bbPlayer.bet = this.bb; bbPlayer.totalBet = this.bb; this.pot += this.bb;
+      this._triggers.push({
+        label:'救命稻草', icon:'🌾',
+        fromId:null, toId:bbPlayer.id, amount:this.bb,
+        note:`${bbPlayer.name} 大盲免費`,
+      });
+      this.addLog(`✦ 救命稻草：${bbPlayer.name} 大盲免費（省 ${this.bb}）`);
+      bbPlayer.flags.freeBBNextHand = false;
+    } else {
+      this._postBlind(bbPlayer, this.bb, 'BB');
+    }
     this.highestBet = this.bb;
 
     // 發底牌
@@ -294,8 +524,25 @@ class Game {
     this.toAct = new Set(alivePos.map(i => this.players[i].id));
     this.hasActedThisRound = new Set();
     this.currentPos = utgPos;
+    this._lastRaiserId = null;
+    this._streetWhenRaised = null;
+
+    // ====== 角色：每手開局觸發（east_money）======
+    this._runHandStartTriggers();
 
     return true;
+  }
+
+  _runHandStartTriggers(){
+    this.players.forEach(p=>{
+      if(!p.alive || p._empty) return;
+      if(hasTalent(p, 'east_money') && this.lastWinnerId !== null && this.lastWinnerId !== p.id){
+        if(Math.random() < 0.5){
+          const target = this.players.find(x=> x.id === this.lastWinnerId);
+          if(target && target.alive) this._transferChips(target, p, this.sb, '東家錢');
+        }
+      }
+    });
   }
 
   _postBlind(p, amt, label){
@@ -341,17 +588,101 @@ class Game {
     if(action.type === 'fold'){
       p.folded = true;
       this.addLog(`${p.name} 棄牌`);
+      // 角色：精準出擊（小盲/大盲位棄牌退回 1 SB）
+      if(hasTalent(p, 'precision')){
+        const playerIdx = this.players.indexOf(p);
+        if(playerIdx === this.sbPos || playerIdx === this.bbPos){
+          const refund = Math.min(this.pot, this.sb);
+          if(refund > 0){
+            this.pot -= refund;
+            p.chips += refund;
+            this._triggers.push({
+              label:'精準出擊', icon:'🎯',
+              fromId:null, toId:p.id, amount:refund,
+            });
+            this.addLog(`✦ 精準出擊：${p.name} 退回 ${refund}`);
+          }
+        }
+      }
+      // 變體：沉沒成本（preflop 棄牌罰 SB%，非小大盲位）
+      if(this.mode === 'sunk' && this.street === 'preflop'){
+        const playerIdx = this.players.indexOf(p);
+        if(playerIdx !== this.sbPos && playerIdx !== this.bbPos){
+          const factor = this.level===1?0.2 : this.level===2?0.5 : 0.8;
+          const penalty = Math.min(p.chips, Math.floor(this.sb * factor));
+          if(penalty > 0){
+            p.chips -= penalty;
+            this.pot += penalty;
+            this._triggers.push({
+              label:'沉沒成本', icon:'💸',
+              fromId:p.id, toId:null, amount:penalty,
+              note:`${p.name} 逃跑費`,
+            });
+            this.addLog(`✦ 沉沒成本：${p.name} 逃跑費 ${penalty}`);
+          }
+        }
+      }
+      // 能力：忍痛割愛（投入超過 30% 籌碼 → 下一手免費跟大盲）
+      if(hasPower(p, 'grit')){
+        const totalChips = p.chips + (p.totalBet||0);
+        if(totalChips > 0 && (p.totalBet||0)/totalChips > 0.3){
+          p.flags = p.flags || {};
+          p.flags.freeCallNextHand = true;
+          this._triggers.push({
+            label:'忍痛割愛', icon:'💔',
+            fromId:null, toId:p.id, amount:0,
+            note:`${p.name} 下一局免費跟大盲`,
+          });
+          this.addLog(`✦ 忍痛割愛：${p.name} 下一局可免費跟大盲一次`);
+        }
+      }
     } else if(action.type === 'check'){
       if(need !== 0) return { ok:false, error:'cannot check, must call or fold' };
       this.addLog(`${p.name} 過牌`);
     } else if(action.type === 'call'){
-      const pay = Math.min(need, p.chips);
+      let pay = Math.min(need, p.chips);
+      // 能力：忍痛割愛（preflop 免費跟大盲）—— bb 那部分免費，超過 bb 的部分照付
+      if(p.flags && p.flags.freeCallNextHand && this.street === 'preflop' && pay > 0){
+        const refund = Math.min(pay, this.bb);
+        const realPay = pay - refund;
+        p.chips -= realPay;
+        this.pot += realPay;
+        p.bet += pay;          // 視為已對齊 highestBet
+        p.totalBet += pay;
+        this._triggers.push({
+          label:'忍痛割愛', icon:'💔',
+          fromId:null, toId:p.id, amount:refund,
+          note:`${p.name} 免費跟大盲（省）`,
+        });
+        this.addLog(`✦ 忍痛割愛：${p.name} 免費跟大盲（省 ${refund}）`);
+        p.flags.freeCallNextHand = false;
+        if(p.chips === 0) p.allIn = true;
+        this.hasActedThisRound.add(p.id);
+        return { ok:true };
+      }
       p.chips -= pay;
       p.bet += pay;
       p.totalBet += pay;
       this.pot += pay;
       if(p.chips === 0) p.allIn = true;
       this.addLog(`${p.name} 跟注 ${pay}`);
+      // 角色：水漲船高（跟注的對手多付 1 SB）
+      if(this._lastRaiserId !== null && this._lastRaiserId !== p.id){
+        const raiser = this.players.find(x=> x.id === this._lastRaiserId);
+        if(raiser && hasTalent(raiser, 'rising_tide')){
+          const extra = Math.min(p.chips, this.sb);
+          if(extra > 0){
+            p.chips -= extra;
+            this.pot += extra;
+            this._triggers.push({
+              label:'水漲船高', icon:'🌊',
+              fromId:p.id, toId:raiser.id, amount:extra,
+              note:`${p.name} 多付進底池`,
+            });
+            this.addLog(`✦ 水漲船高：${p.name} 多付 ${extra} 進底池`);
+          }
+        }
+      }
     } else if(action.type === 'raise' || action.type === 'allin'){
       let target;
       if(action.type === 'allin'){
@@ -360,6 +691,18 @@ class Game {
         target = action.amount || (this.highestBet + this.minRaise);
       }
       target = Math.max(target, this.highestBet + this.minRaise);
+      // 角色：氣勢凌人（加注 target 少 1 SB；不適用 all-in）
+      if(action.type === 'raise' && hasTalent(p, 'imposing')){
+        const reduced = Math.max(this.bb, target - this.sb);
+        if(reduced < target){
+          this._triggers.push({
+            label:'氣勢凌人', icon:'💢',
+            fromId:null, toId:p.id, amount:this.sb,
+            note:`${p.name} 加注少付`,
+          });
+          target = reduced;
+        }
+      }
       target = Math.min(target, p.bet + p.chips);
       const pay = target - p.bet;
       if(pay <= 0) return { ok:false, error:'invalid raise' };
@@ -367,11 +710,14 @@ class Game {
       p.bet = target;
       p.totalBet += pay;
       this.pot += pay;
-      if(p.chips === 0) p.allIn = true;
+      if(p.chips === 0){ p.allIn = true; p._wasAllIn = true; }
+      if(action.type === 'allin') p._wasAllIn = true;
       if(target > this.highestBet){
         this.lastRaiseAmt = target - this.highestBet;
         this.minRaise = this.lastRaiseAmt;
         this.highestBet = target;
+        this._lastRaiserId = p.id;
+        this._streetWhenRaised = this.street;
         // 別人需要再次行動
         this.players.forEach(other=>{
           if(other.alive && !other.folded && !other.allIn && other.id !== p.id){
@@ -468,7 +814,7 @@ class Game {
     this.addLog(`◇ River: ${this.community.map(c=>c.rank+c.suit).join(' ')}`);
   }
 
-  // 比牌結算 → 回傳 { winners, losers, handType, handName, matchedKeys, evals?, foldOut }
+  // 比牌結算 → 回傳 { winners, losers, handType, handName, matchedKeys, triggers, foldOut }
   showdown(){
     const remaining = this.players.filter(p=> p.alive && !p.folded);
     const potSnapshot = this.pot;
@@ -478,11 +824,18 @@ class Game {
       this.pot = 0;
       this.lastWinnerId = w.id;
       this.addLog(`${w.name} 贏下底池 ${potSnapshot}（其他人都棄牌）`);
+      // 角色：惡霸（翻牌前棄牌出局）
+      if(hasTalent(w, 'bully') && this._lastRaiserId === w.id && this._streetWhenRaised === 'preflop'){
+        this.players.filter(p=> p!==w && p.alive && !p._empty).forEach(o=>{
+          this._transferChips(o, w, this.sb*0.5, '惡霸');
+        });
+      }
       return {
         winners: [w.id],
         losers: [],
         potWon: potSnapshot,
         foldOut: true,
+        triggers: this._triggers.slice(),
       };
     }
     const evals = remaining.map(p=>{
@@ -515,6 +868,133 @@ class Game {
     this.lastWinnerId = winners[0]?.id ?? null;
     this.addLog(`★ ${winners.map(w=>w.name).join('、')} 贏下底池 ${potSnapshot}（${handName}）`);
 
+    // ====== 角色 + 能力：showdown 觸發 ======
+    const sb = this.sb, bb = this.bb, handType = best[0];
+    const potSnap = potSnapshot;
+    winners.forEach(w=>{
+      // ----- 角色 -----
+      if(hasTalent(w, 'street_king')){
+        losers.forEach(l=> this._transferChips(l, w, bb*2, '街頭小霸王'));
+      }
+      if(hasTalent(w, 'rich_richer')){
+        const maxChips = Math.max(...this.players.filter(p=>p.alive).map(p=>p.chips));
+        if(w.chips >= maxChips){
+          losers.forEach(l=> this._transferChips(l, w, (l.totalBet||0)*0.05, '強者恆強'));
+        }
+      }
+      if(hasTalent(w, 'soft_target')){
+        const opps = this.players.filter(p=> p!==w && p.alive && !p._empty);
+        if(opps.length){
+          const poorest = opps.reduce((a,b)=> a.chips<=b.chips?a:b);
+          this._transferChips(poorest, w, sb, '專挑軟柿子');
+        }
+      }
+      if(hasTalent(w, 'big_blind')){
+        losers.forEach(l=> this._transferChips(l, w, l.totalBet||0, '大盲'));
+      }
+      if(hasTalent(w, 'small_blind')){
+        losers.forEach(l=> this._transferChips(l, w, (l.totalBet||0)*0.5, '小盲'));
+      }
+      // ----- 能力 -----
+      if(hasPower(w, 'arrogant') && handType === 0){
+        losers.forEach(l=> this._transferChips(l, w, bb, '不可一世'));
+      }
+      if(hasPower(w, 'one_pair') && handType === 1){
+        losers.forEach(l=> this._transferChips(l, w, bb*2, '對子'));
+      }
+      if(hasPower(w, 'two_pair') && handType === 2){
+        losers.forEach(l=> this._transferChips(l, w, bb*3, '兩對！'));
+      }
+      if(hasPower(w, 'three_kind') && handType === 3){
+        losers.forEach(l=> this._transferChips(l, w, bb*4, '三條'));
+      }
+      if(hasPower(w, 'streak') && (w.winStreak||0) >= 3){
+        losers.forEach(l=> this._transferChips(l, w, sb, '連勝加成'));
+      }
+      if(hasPower(w, 'p_rule27')){
+        const ranks = (w.hole||[]).map(c=>c.rank).sort();
+        if(ranks.length===2 && ranks.includes('2') && ranks.includes('7')){
+          this.players.filter(p=> p!==w && p.alive && !p._empty).forEach(o=>{
+            this._transferChips(o, w, bb*2, '27 法則');
+          });
+        }
+      }
+      if(hasPower(w, 'magnet')){
+        if(w.chips < potSnap/2){
+          const richestLoser = losers.length ? losers.reduce((a,b)=> a.chips>=b.chips?a:b) : null;
+          if(richestLoser) this._transferChips(richestLoser, w, bb, '吸金術');
+        }
+      }
+      if(hasPower(w, 'biteback') && w._wasAllIn){
+        losers.forEach(l=>{
+          if((l.chips + (l.totalBet||0)) > (w.chips + (w.totalBet||0))){
+            this._transferChips(l, w, l.chips * 0.1, '反咬一口');
+          }
+        });
+      }
+      // ----- 變體：rule27 mode -----
+      if(this.mode === 'rule27'){
+        const ranks = (w.hole||[]).map(c=>c.rank).sort();
+        if(ranks.length===2 && ranks.includes('2') && ranks.includes('7')){
+          const factor = this.level===1?0.75 : this.level===2?1 : 1.5;
+          this.players.filter(p=> p!==w && p.alive && !p._empty).forEach(o=>{
+            this._transferChips(o, w, Math.floor(bb*factor), '27 規則');
+          });
+        }
+      }
+      w.winStreak = (w.winStreak||0) + 1;
+      w.showdownWins = (w.showdownWins||0) + 1;
+    });
+    losers.forEach(l=>{
+      if(hasTalent(l, 'gold_kick')){
+        const myEv = evals.find(e=> e.p===l);
+        const winEv = evals.find(e=> winners.includes(e.p));
+        if(myEv && winEv && myEv.ev.score[0] === winEv.ev.score[0]){
+          let lostByKicker = false;
+          for(let i=1; i<Math.max(myEv.ev.score.length, winEv.ev.score.length); i++){
+            const a = myEv.ev.score[i]||0, b = winEv.ev.score[i]||0;
+            if(a !== b){ lostByKicker = (a < b); break; }
+          }
+          if(lostByKicker){
+            this.players.filter(p=> p!==l && p.alive && !p._empty).forEach(o=>{
+              const owe = sb*3, reserve = sb;
+              const cap = Math.max(0, o.chips - reserve);
+              const pay = Math.min(cap, owe);
+              if(pay > 0) this._transferChips(o, l, pay, '黃金右腳');
+            });
+          }
+        }
+      }
+      // 能力：天生一對（手牌是對子，輸了拿回 2 BB）
+      if(hasPower(l, 'pair_back')){
+        const ranks = (l.hole||[]).map(c=>c.rank);
+        if(ranks.length===2 && ranks[0]===ranks[1]){
+          winners.forEach(w=> this._transferChips(w, l, bb*2, '天生一對'));
+        }
+      }
+      l.winStreak = 0;
+    });
+
+    // 結算後：last_straw 旗標（最少籌碼者下局 BB 免費）
+    const aliveAfter = this.players.filter(p=> p.alive && !p._empty);
+    if(aliveAfter.length){
+      const minChips = Math.min(...aliveAfter.map(p=>p.chips));
+      aliveAfter.forEach(p=>{
+        if(p.chips === minChips && hasPower(p, 'last_straw')){
+          p.flags = p.flags || {};
+          p.flags.freeBBNextHand = true;
+        }
+      });
+    }
+
+    // 偵測本手淘汰的人 + 找 killer（給能力選擇用）
+    const eliminated = losers.filter(l=> l.chips <= 0).map(l=> l.id);
+    let killer = null;
+    if(eliminated.length){
+      const winnerByChips = winners.slice().sort((a,b)=> b.chips - a.chips)[0];
+      killer = winnerByChips ? winnerByChips.id : null;
+    }
+
     return {
       winners: winners.map(w=>w.id),
       losers: losers.map(l=>l.id),
@@ -524,6 +1004,9 @@ class Game {
       reveals: remaining.reduce((acc,p)=>{ acc[p.id] = p.hole; return acc; }, {}),
       potWon: potSnapshot,
       foldOut: false,
+      triggers: this._triggers.slice(),
+      eliminated,
+      killer,
     };
   }
 
@@ -572,10 +1055,17 @@ class Game {
         alive: p.alive,
         folded: p.folded,
         allIn: p.allIn,
+        talent: p.talent || null,
+        powerUps: (p.powerUps || []).slice(),
         // 只給自己的底牌；其他人只說有沒有牌
         hole: (forPlayerId !== null && p.id === forPlayerId) ? p.hole : null,
         hasHole: p.hole.length > 0,
       })),
+      mode: this.mode,
+      level: this.level,
+      removedRanks: this.removedRanks.slice(),
+      removedSuit: this.removedSuit,
+      heroRank: this._heroRank(),
       ended: this.ended,
     };
   }
@@ -680,4 +1170,10 @@ module.exports = {
   RANKS,
   RANK_VAL,
   SUITS,
+  CHARACTERS,
+  POWER_UPS,
+  MODES,
+  modeDetail,
+  hasTalent,
+  hasPower,
 };
