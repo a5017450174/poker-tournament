@@ -1353,6 +1353,27 @@ function showBlindUp(level, sb, bb){
   setTimeout(()=> el.remove(), 2950);
 }
 
+// 隨機角色揭曉彈窗（只在你 lobby 選了「隨機」、進入遊戲第一手前彈一次）
+function showRandomTalentReveal(talentId){
+  const ch = CHAR_BY_ID[talentId];
+  if(!ch) return;
+  document.querySelectorAll('.power-desc-overlay').forEach(e=> e.remove());
+  const overlay = document.createElement('div');
+  overlay.className = 'power-desc-overlay';
+  overlay.innerHTML = `
+    <div class="power-desc-card">
+      <div style="font-size:12px;color:var(--text-mute);letter-spacing:8px;margin-bottom:10px">🎲 隨機角色揭曉</div>
+      <div class="pdc-ico">${ch.icon}</div>
+      <div class="pdc-name">${ch.name}</div>
+      <div class="pdc-desc">${ch.desc}</div>
+      <div class="pdc-tap">點任一處關閉</div>
+    </div>`;
+  document.body.appendChild(overlay);
+  const close = ()=> overlay.remove();
+  overlay.addEventListener('click', close);
+  setTimeout(close, 6000);
+}
+
 function showShowdownHandName(name){
   document.querySelectorAll('.showdown-handname').forEach(e=> e.remove());
   const el = document.createElement('div');
@@ -1546,6 +1567,7 @@ let myMode = 'create';
 let myTalent = null;            // 我選的角色
 let lastMyHandType = -1;        // 上次我的牌型（用來偵測升級）
 let _inShowdownPhase = false;   // 沒人輪到行動（auto-runout / 等開牌）期間，不秀牌力升級 toast
+let _pendingRandomReveal = false; // 我選了「隨機」角色，等遊戲開始時揭曉用
 let playerSeatMap = new Map();  // playerId -> seat DOM
 
 // ============ 頭貼選擇器 ============
@@ -1638,19 +1660,41 @@ function renderWaitRoom(){
     const row = document.createElement('div');
     row.className = 'wait-player' + (p.id === lobby.hostId ? ' host':'');
     const isMe = p.id === myId;
-    const ch = p.talent ? CHAR_BY_ID[p.talent] : null;
-    const charBadge = ch ? `<span title="${ch.name} — ${ch.desc}" style="font-size:18px;background:rgba(231,181,59,.18);border:1px solid var(--gold);padding:2px 8px;border-radius:99px">${ch.icon} ${ch.name}</span>` : `<span style="font-size:11px;color:var(--text-mute);letter-spacing:1px">未選角</span>`;
+    let charBadge;
+    if(p.talent === '__random__'){
+      charBadge = `<span title="隨機角色 — 進入遊戲才知道" style="font-size:14px;background:rgba(231,181,59,.18);border:1px solid var(--gold);padding:2px 10px;border-radius:99px;color:var(--gold);font-weight:700">🎲 隨機</span>`;
+    } else if(p.talent){
+      const ch = CHAR_BY_ID[p.talent];
+      charBadge = ch ? `<span title="${ch.name} — ${ch.desc}" style="font-size:18px;background:rgba(231,181,59,.18);border:1px solid var(--gold);padding:2px 8px;border-radius:99px">${ch.icon} ${ch.name}</span>` : `<span style="font-size:11px;color:var(--text-mute);letter-spacing:1px">未選角</span>`;
+    } else {
+      charBadge = `<span style="font-size:11px;color:var(--red);letter-spacing:1px;font-weight:700">未選角</span>`;
+    }
     const ico = p.avatar || (p.isAI ? '🤖' : '🧑');
     row.innerHTML = `<span class="ico">${ico}</span><span class="name">${p.name}</span>${charBadge}${isMe?'<span class="you">你</span>':''}`;
     list.appendChild(row);
   });
   isHost = lobby.hostId === myId;
+  // 還沒選角色的真實玩家（AI 不算）
+  const unselectedHumans = lobby.players.filter(p => !p.isAI && !p.talent);
   if(isHost){
     $('#startBtn').classList.remove('hidden');
-    $('#waitNote').textContent = `共 ${lobby.players.length} 人 + ${lobby.settings.aiCount} 個 AI、思考 ${lobby.settings.baseTurnSec}s、升盲 ${lobby.settings.blindMs/1000}s`;
+    if(unselectedHumans.length){
+      $('#startBtn').disabled = true;
+      $('#startBtn').textContent = `等待 ${unselectedHumans.length} 位玩家選角…`;
+      $('#waitNote').textContent = `還在等：${unselectedHumans.map(p=> p.name).join('、')}`;
+    } else {
+      $('#startBtn').disabled = false;
+      $('#startBtn').textContent = '開始遊戲';
+      $('#waitNote').textContent = `共 ${lobby.players.length} 人 + ${lobby.settings.aiCount} 個 AI、思考 ${lobby.settings.baseTurnSec}s、升盲 ${lobby.settings.blindMs/1000}s`;
+    }
   } else {
     $('#startBtn').classList.add('hidden');
-    $('#waitNote').textContent = '等房主開始遊戲…';
+    if(unselectedHumans.length){
+      const meUnselected = unselectedHumans.find(p => p.id === myId);
+      $('#waitNote').textContent = meUnselected ? '請先選一個角色（或選「隨機」）' : `等待 ${unselectedHumans.length} 位玩家選角…`;
+    } else {
+      $('#waitNote').textContent = '等房主開始遊戲…';
+    }
   }
   renderModeGrid();
   renderCharGrid();
@@ -1703,14 +1747,40 @@ function renderModeGrid(){
 function renderCharGrid(){
   const grid = $('#charGrid');
   if(!grid || !lobby) return;
-  // 收集已被佔用的 talent → playerId
+  // 收集已被佔用的 talent → playerId（「隨機」不算佔用，多人可同時選）
   const taken = new Map();   // talentId -> playerName
   lobby.players.forEach(p=>{
-    if(p.talent) taken.set(p.talent, p);
+    if(p.talent && p.talent !== '__random__') taken.set(p.talent, p);
   });
   const myCard = lobby.players.find(p=> p.id === myId);
   myTalent = myCard ? myCard.talent : null;
   grid.innerHTML = '';
+
+  // 「隨機」卡片：放在第一格，多人可選
+  const randomEl = document.createElement('div');
+  randomEl.className = 'char-card';
+  const isRandomMine = myTalent === '__random__';
+  if(isRandomMine) randomEl.classList.add('selected');
+  // 顯示有幾位玩家也選了隨機
+  const randomCount = lobby.players.filter(p => p.talent === '__random__').length;
+  randomEl.innerHTML = `
+    <div class="ico">🎲</div>
+    <div class="nm">隨機</div>
+    ${randomCount ? `<div class="by">${isRandomMine?(randomCount>1?`你 +${randomCount-1}`:'你'):`${randomCount} 人`}</div>` : ''}
+  `;
+  randomEl.addEventListener('mouseenter', ()=>{
+    $('#charTip').innerHTML = `<strong>🎲 隨機</strong><br>進入遊戲後系統幫你抽一個沒被選的角色，連你自己都不知道是哪個。`;
+  });
+  randomEl.addEventListener('click', ()=>{
+    if(isRandomMine){
+      sendWS({ type:'select-talent', talentId: null });
+    } else {
+      sendWS({ type:'select-talent', talentId: '__random__' });
+    }
+  });
+  grid.appendChild(randomEl);
+
+  // 其餘角色
   CHARACTERS.forEach(c=>{
     const el = document.createElement('div');
     el.className = 'char-card';
@@ -1725,7 +1795,6 @@ function renderCharGrid(){
     el.addEventListener('click', ()=>{
       if(occ && occ.id !== myId) return;  // 別人的位子不能點
       if(isMine){
-        // 取消
         sendWS({ type:'select-talent', talentId: null });
       } else {
         sendWS({ type:'select-talent', talentId: c.id });
@@ -2502,6 +2571,8 @@ function handleMessage(m){
       showGame();
       toast('遊戲開始！');
       updateModeBanner(m.mode, m.level, m.modeDetail);
+      // 如果我在 lobby 選的是隨機 → 等下個 game-state 進來時揭曉
+      if(myTalent === '__random__') _pendingRandomReveal = true;
       break;
     case 'choose-power':
       showChoosePowerModal(m.choices || [], m.deadline);
@@ -2537,6 +2608,14 @@ function handleMessage(m){
         // 新一手開始 → reset 牌力追蹤
         _inShowdownPhase = false;
         lastMyHandType = -1;
+      }
+      // 隨機角色揭曉：等到我有實際 talent id 進來再彈
+      if(_pendingRandomReveal){
+        const meP = (m.state.players || []).find(p => p.id === myId);
+        if(meP && meP.talent && meP.talent !== '__random__'){
+          _pendingRandomReveal = false;
+          setTimeout(()=> showRandomTalentReveal(meP.talent), 400);
+        }
       }
       lastState = m.state;
       if(m.state.mode){

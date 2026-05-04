@@ -95,9 +95,13 @@ class Room {
     }
   }
 
-  // 把已選的 talent 套用，沒選的隨機指派（每位玩家不重複）
+  // 把已選的 talent 套用，沒選 / 選「隨機」的從剩下的池子隨機指派（不重複）
   assignTalents(){
-    const used = new Set([...this.talents.values()].filter(Boolean));
+    // 真正佔位的 talent（不含 __random__）
+    const used = new Set();
+    this.talents.forEach((t)=>{
+      if(t && t !== '__random__') used.add(t);
+    });
     const pool = CHARACTERS.filter(c=> !used.has(c.id));
     // 洗牌 pool
     for(let i=pool.length-1;i>0;i--){
@@ -106,7 +110,8 @@ class Room {
     }
     this.game.players.forEach(p=>{
       let t = this.talents.get(p.id);
-      if(!t){
+      // 沒選 或 選「__random__」 → 從池子裡抓一個
+      if(!t || t === '__random__'){
         const pick = pool.shift();
         if(pick) t = pick.id;
         else t = CHARACTERS[Math.floor(Math.random()*CHARACTERS.length)].id;
@@ -570,6 +575,9 @@ function handleMessage(ws, msg){
       // 取消選取
       if(!tid){
         room.talents.delete(c.playerId);
+      } else if(tid === '__random__'){
+        // 「隨機」可以多人同時選，不檢查唯一性
+        room.talents.set(c.playerId, '__random__');
       } else {
         // 檢查是否被其他人佔用
         for(const [pid, t] of room.talents.entries()){
@@ -589,6 +597,15 @@ function handleMessage(ws, msg){
       if(!room) return;
       if(room.hostId !== c.playerId){
         send(ws, { type:'error', msg:'only host can start' });
+        return;
+      }
+      // 確認所有真實玩家都已選擇（含「隨機」）
+      const unselected = room.game.players.filter(p =>
+        !p.isAI && !room.talents.has(p.id)
+      );
+      if(unselected.length){
+        const names = unselected.map(p=> p.name).join('、');
+        send(ws, { type:'error', msg:`還有 ${unselected.length} 位玩家還沒選角色（${names}）` });
         return;
       }
       const ok = room.startGame();
