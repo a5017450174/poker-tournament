@@ -599,17 +599,8 @@ function handleMessage(ws, msg){
       // 取消選取
       if(!tid){
         room.talents.delete(c.playerId);
-      } else if(tid === '__random__'){
-        // 「隨機」可以多人同時選，不檢查唯一性
-        room.talents.set(c.playerId, '__random__');
       } else {
-        // 檢查是否被其他人佔用
-        for(const [pid, t] of room.talents.entries()){
-          if(pid !== c.playerId && t === tid){
-            send(ws, { type:'error', msg:'這個角色已被其他人選了' });
-            return;
-          }
-        }
+        // 不再檢查唯一性 — 不同真實玩家可以選同一個角色（含「隨機」）
         room.talents.set(c.playerId, tid);
       }
       room.humanIds.forEach((w)=> send(w, { type:'lobby-update', lobby: room.publicLobbyInfo() }));

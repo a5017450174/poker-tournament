@@ -988,7 +988,7 @@
     </div>
 
     <div class="char-section">
-      <div class="lbl-h">— 選你的角色天賦（不選會隨機分配）—</div>
+      <div class="lbl-h">— 選你的角色天賦（可重複，不選會隨機分配）—</div>
       <div class="char-grid" id="charGrid"></div>
       <div class="char-tip" id="charTip">點一個角色看效果說明</div>
     </div>
@@ -1752,26 +1752,38 @@ function renderModeGrid(){
 function renderCharGrid(){
   const grid = $('#charGrid');
   if(!grid || !lobby) return;
-  // 收集已被佔用的 talent → playerId（「隨機」不算佔用，多人可同時選）
-  const taken = new Map();   // talentId -> playerName
+  // 收集每個角色被誰選了（同一角色可被多人選）
+  const takenBy = new Map();   // talentId -> [players]
   lobby.players.forEach(p=>{
-    if(p.talent && p.talent !== '__random__') taken.set(p.talent, p);
+    if(p.talent && p.talent !== '__random__'){
+      if(!takenBy.has(p.talent)) takenBy.set(p.talent, []);
+      takenBy.get(p.talent).push(p);
+    }
   });
   const myCard = lobby.players.find(p=> p.id === myId);
   myTalent = myCard ? myCard.talent : null;
   grid.innerHTML = '';
 
-  // 「隨機」卡片：放在第一格，多人可選
+  // helper：算出「by」標籤要怎麼顯示（你 / 你 +N / N 人 / 某某）
+  const byLabel = (occList, isMine)=>{
+    if(!occList.length) return '';
+    if(isMine && occList.length === 1) return '你';
+    if(isMine) return `你 +${occList.length - 1}`;
+    if(occList.length === 1) return occList[0].name.slice(0,3);
+    return `${occList.length} 人`;
+  };
+
+  // 「隨機」卡片：放在第一格
   const randomEl = document.createElement('div');
   randomEl.className = 'char-card';
   const isRandomMine = myTalent === '__random__';
   if(isRandomMine) randomEl.classList.add('selected');
-  // 顯示有幾位玩家也選了隨機
-  const randomCount = lobby.players.filter(p => p.talent === '__random__').length;
+  const randomList = lobby.players.filter(p => p.talent === '__random__');
+  const randomBy = byLabel(randomList, isRandomMine);
   randomEl.innerHTML = `
     <div class="ico">🎲</div>
     <div class="nm">隨機</div>
-    ${randomCount ? `<div class="by">${isRandomMine?(randomCount>1?`你 +${randomCount-1}`:'你'):`${randomCount} 人`}</div>` : ''}
+    ${randomBy ? `<div class="by">${randomBy}</div>` : ''}
   `;
   randomEl.addEventListener('mouseenter', ()=>{
     $('#charTip').innerHTML = `<strong>🎲 隨機</strong><br>進入遊戲後系統幫你抽一個沒被選的角色，連你自己都不知道是哪個。`;
@@ -1785,20 +1797,20 @@ function renderCharGrid(){
   });
   grid.appendChild(randomEl);
 
-  // 其餘角色
+  // 其餘角色（每張卡可被多人選）
   CHARACTERS.forEach(c=>{
     const el = document.createElement('div');
     el.className = 'char-card';
-    const occ = taken.get(c.id);
-    const isMine = occ && occ.id === myId;
+    const occList = takenBy.get(c.id) || [];
+    const isMine = occList.some(p => p.id === myId);
     if(isMine) el.classList.add('selected');
-    else if(occ) el.classList.add('taken');
-    el.innerHTML = `<div class="ico">${c.icon}</div><div class="nm">${c.name}</div>${occ?`<div class="by">${isMine?'你':occ.name.slice(0,3)}</div>`:''}`;
+    // 不再用 'taken' class 鎖死別人的位子 — 同個角色可重複選
+    const by = byLabel(occList, isMine);
+    el.innerHTML = `<div class="ico">${c.icon}</div><div class="nm">${c.name}</div>${by?`<div class="by">${by}</div>`:''}`;
     el.addEventListener('mouseenter', ()=>{
       $('#charTip').innerHTML = `<strong>${c.icon} ${c.name}</strong><br>${c.desc}`;
     });
     el.addEventListener('click', ()=>{
-      if(occ && occ.id !== myId) return;  // 別人的位子不能點
       if(isMine){
         sendWS({ type:'select-talent', talentId: null });
       } else {
