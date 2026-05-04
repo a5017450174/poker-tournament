@@ -61,6 +61,7 @@ class Room {
     this.game.mode = this.settings.mode || 'classic';
     this.game.level = this.settings.level || 1;
     this.powerPickState = null;  // { playerId, choices, deadline, timer }
+    this._pendingPickCount = 0;  // 同手 KO N 人 → 還剩幾次能力選擇
     this._blindElapsedAtPause = 0;
     this.humanIds = new Map();   // playerId -> ws
     this.turnDeadline = 0;
@@ -329,8 +330,16 @@ class Room {
         this._nextHand();   // 會走到 _endTournament
         return;
       }
-      // 有人被淘汰 → 給 killer 選一個能力
-      if(result.killer && (result.eliminated || []).length){
+      // 階段限制：只有第 2、第 3 階段（盲注等級 2 / 3）打掉人才能挑能力
+      // 第 1 階段：剛開局還在熱身，不挑
+      // 第 4 階段以上：能力已飽和，後期靠累積打的
+      const stage = this.game.blindLevel || 1;
+      const inPickStage = (stage === 2 || stage === 3);
+      const elimCount = (result.eliminated || []).length;
+
+      if(inPickStage && result.killer && elimCount > 0){
+        // 同時 KO N 人 → 連抽 N 次能力（每次都從沒拿過的池中抽 3 選 1）
+        this._pendingPickCount = elimCount;
         this._startPowerPick(result.killer, result.eliminated);
       } else {
         this._nextHand();
@@ -355,20 +364,23 @@ class Room {
     if(this.blindTimer){ clearInterval(this.blindTimer); this.blindTimer = null; }
     this._blindElapsedAtPause = Date.now() - this.game.blindStartTs;
 
+    // 多殺多選：picksRemaining = 含這次還要挑幾次（用來顯示 "第 1 / 2 次"）
+    const picksRemaining = Math.max(1, this._pendingPickCount || 1);
+
     // AI 直接秒選
     if(killer.isAI){
       const pick = choices[Math.floor(Math.random()*choices.length)];
       setTimeout(()=> this._finishPowerPick(pick.id), 800);
-      this.broadcast({ type:'power-pick-pending', killerId, killerName:killer.name, eliminated, deadline, isAI:true });
+      this.broadcast({ type:'power-pick-pending', killerId, killerName:killer.name, eliminated, deadline, isAI:true, picksRemaining });
       return;
     }
 
     // 真人：發 choose-power 給 killer，廣播 pending 給其他人
     const ws = this.humanIds.get(killerId);
     if(ws){
-      send(ws, { type:'choose-power', choices, deadline });
+      send(ws, { type:'choose-power', choices, deadline, picksRemaining });
     }
-    this.broadcast({ type:'power-pick-pending', killerId, killerName:killer.name, eliminated, deadline, isAI:false });
+    this.broadcast({ type:'power-pick-pending', killerId, killerName:killer.name, eliminated, deadline, isAI:false, picksRemaining });
 
     // 30 秒沒選 → 隨機
     this.powerPickState.timer = setTimeout(()=>{
@@ -392,6 +404,18 @@ class Room {
       power: power || null,
     });
     this.powerPickState = null;
+    // 多殺多抽：還剩 picks 沒挑就再開一輪（同一個 killer）
+    if(this._pendingPickCount > 0) this._pendingPickCount--;
+    if(this._pendingPickCount > 0 && player && player.alive){
+      // 1.6 秒後再給下一個能力選單，讓玩家看到上一個 power-applied 動畫
+      setTimeout(()=> {
+        if(this.phase !== 'ended' && !this.game.ended){
+          this._startPowerPick(playerId, []);
+        }
+      }, 1600);
+      return;
+    }
+    this._pendingPickCount = 0;
     // 恢復升盲計時器
     if(this._blindElapsedAtPause){
       this.game.blindStartTs = Date.now() - this._blindElapsedAtPause;

@@ -1447,14 +1447,17 @@ let choosePowerCdTimer = null;
 let myTurnWarnTimer = null;
 let myTurnDangerTimer = null;
 
-function showChoosePowerModal(choices, deadline){
+function showChoosePowerModal(choices, deadline, picksRemaining){
   closeChoosePowerModal();
   const overlay = document.createElement('div');
   overlay.className = 'power-pick-overlay';
   overlay.id = 'powerPickOverlay';
+  // 多殺多選：標題提示「還可以再挑 N 次」
+  const remaining = picksRemaining || 1;
+  const titleSuffix = remaining > 1 ? `（還剩 ${remaining} 次）` : '';
   overlay.innerHTML = `
     <div class="power-pick-card">
-      <div class="pp-title">★ 你淘汰了對手 · 選個能力</div>
+      <div class="pp-title">★ 你淘汰了對手 · 選個能力${titleSuffix}</div>
       <div class="pp-sub">3 選 1 · <span class="pp-cd" id="ppCd">30</span> 秒後系統隨機選</div>
       <div class="power-pick-grid">
         ${choices.map((c,i)=>`<div class="power-card" data-id="${c.id}">
@@ -1485,12 +1488,14 @@ function closeChoosePowerModal(){
   if(choosePowerCdTimer){ clearInterval(choosePowerCdTimer); choosePowerCdTimer = null; }
 }
 
-function showPickPendingBanner(killerName, deadline){
+function showPickPendingBanner(killerName, deadline, picksRemaining){
   closePickPendingBanner();
   const el = document.createElement('div');
   el.className = 'pick-pending-banner';
   el.id = 'pickPendingBanner';
-  el.innerHTML = `🎁 <span><strong>${killerName}</strong> 淘汰對手，正在選能力…</span><span class="cd" id="ppbCd">30</span><span>s</span>`;
+  const remaining = picksRemaining || 1;
+  const suffix = remaining > 1 ? `（還剩 ${remaining} 次）` : '';
+  el.innerHTML = `🎁 <span><strong>${killerName}</strong> 淘汰對手，正在選能力${suffix}…</span><span class="cd" id="ppbCd">30</span><span>s</span>`;
   document.body.appendChild(el);
   if(pickPendingTimer) clearInterval(pickPendingTimer);
   pickPendingTimer = setInterval(()=>{
@@ -2575,12 +2580,12 @@ function handleMessage(m){
       if(myTalent === '__random__') _pendingRandomReveal = true;
       break;
     case 'choose-power':
-      showChoosePowerModal(m.choices || [], m.deadline);
+      showChoosePowerModal(m.choices || [], m.deadline, m.picksRemaining);
       break;
     case 'power-pick-pending':
       // 我自己被淘汰了就不用看對手在選什麼
       if(m.killerId !== myId && isMeAlive()){
-        showPickPendingBanner(m.killerName || '某人', m.deadline);
+        showPickPendingBanner(m.killerName || '某人', m.deadline, m.picksRemaining);
       }
       break;
     case 'power-applied':
